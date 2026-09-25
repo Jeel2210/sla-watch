@@ -1,174 +1,51 @@
-import React, { useState } from 'react';
-import type { UploadCreated, UploadSummary } from '@sla/core';
-import { uploadCsv, getUploads } from './api/client';
-import { Dashboard } from './features/Dashboard';
-import { Logs } from './features/Logs';
-import './styles/index.css';
+import { EmptyState, ErrorBox, Panel } from './components/ui';
+import { DashboardPage } from './features/dashboard/DashboardPage';
+import { Sidebar } from './features/shell/Sidebar';
+import { TopBar, UploadTopBar } from './features/shell/TopBar';
+import { useCurrentUpload } from './features/shell/useCurrentUpload';
+import { UploadsPage } from './features/uploads/UploadsPage';
+import { navigate, useRoute } from './lib/router';
 
 export default function App() {
-  const [status, setStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
-  const [message, setMessage] = useState<string>('');
-  const [uploads, setUploads] = useState<UploadSummary[]>([]);
-  const [lastUpload, setLastUpload] = useState<UploadCreated | null>(null);
-  const [showDashboard, setShowDashboard] = useState(false);
-
-  // One path for both the file picker and drag-and-drop.
-  const handleFile = async (file: File | undefined) => {
-    if (!file) return;
-    setStatus('uploading');
-    setMessage('Processing your file...');
-    try {
-      const result = await uploadCsv(file);
-      setLastUpload(result);
-      setShowDashboard(true);
-      setStatus('success');
-      setMessage(`✓ ${result.duplicate ? 'Duplicate upload' : 'Upload successful'}. Stored ${result.rowsStored} checks.`);
-      setUploads((await getUploads()).items);
-    } catch (error) {
-      setStatus('error');
-      setMessage(`✗ ${error instanceof Error ? error.message : 'Upload failed'}`);
-    }
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => handleFile(e.currentTarget.files?.[0]);
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.currentTarget.classList.add('dragover');
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.currentTarget.classList.remove('dragover');
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.currentTarget.classList.remove('dragover');
-    void handleFile(e.dataTransfer.files?.[0]);
-  };
+  const route = useRoute();
+  const current = useCurrentUpload();
 
   return (
-    <div className="container">
-      <div className="header">
-        <h1>SLA Watch</h1>
-        <p>Upload a CSV of health-check logs. We'll clean it, compute SLA stats, and show you the dashboard.</p>
-      </div>
-
-      <div className="panel">
-        <h2>Upload Monitoring CSV</h2>
-
-        {status !== 'idle' && (
-          <div className={status === 'success' ? 'success' : status === 'error' ? 'error' : 'loading'}>
-            {message}
-          </div>
-        )}
-
-        <div
-          className="upload-zone"
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-        >
-          <input
-            type="file"
-            accept=".csv"
-            onChange={handleFileChange}
-            disabled={status === 'uploading'}
-          />
-          <div>
-            <p style={{ marginBottom: '8px', fontWeight: 500 }}>
-              Drag CSV file here or click to select
-            </p>
-            <p style={{ fontSize: '12px', color: 'var(--ink-2)' }}>
-              Max 50 MB raw (gzipped in browser). Accepts UTC and epoch timestamps, mixed units, duplicates from multiple
-              agents.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {lastUpload && (
-        <div className="panel">
-          <h2>Upload Summary</h2>
-          <table className="table">
-            <tbody>
-              <tr>
-                <td><strong>File</strong></td>
-                <td>{lastUpload.fileName}</td>
-              </tr>
-              <tr>
-                <td><strong>ID</strong></td>
-                <td style={{ fontFamily: 'monospace', fontSize: '12px' }}>{lastUpload.id}</td>
-              </tr>
-              <tr>
-                <td><strong>Checks Stored</strong></td>
-                <td>{lastUpload.rowsStored.toLocaleString()}</td>
-              </tr>
-              <tr>
-                <td><strong>Merged</strong></td>
-                <td>{lastUpload.rowsMerged}</td>
-              </tr>
-              <tr>
-                <td><strong>Fixed</strong></td>
-                <td>{lastUpload.rowsFixed}</td>
-              </tr>
-              <tr>
-                <td><strong>Rejected</strong></td>
-                <td>{lastUpload.rowsRejected}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {showDashboard && lastUpload && (
-        <div>
-          <div style={{ marginBottom: '16px' }}>
-            <button
-              onClick={() => setShowDashboard(false)}
-              style={{ padding: '8px 16px', fontSize: '13px' }}
-            >
-              ← Back to Upload
-            </button>
-          </div>
-
-          <div style={{ marginBottom: '20px', padding: '16px', backgroundColor: 'var(--surface-2)', borderRadius: '8px' }}>
-            <strong>{lastUpload.fileName}</strong>
-            <div style={{ fontSize: '12px', color: 'var(--ink-2)', marginTop: '4px' }}>
-              {lastUpload.rowsStored.toLocaleString()} checks stored · {lastUpload.rowsMerged} merged · {lastUpload.rowsFixed} fixed
+    <div className="app">
+      <Sidebar screen={route.screen} recent={current.recent} current={current.upload} />
+      <main className="main">
+        {route.screen === 'uploads' ? (
+          <>
+            <TopBar title="Uploads" sub="Add a monitoring CSV. The cleaning function checks and cleans every row, then saves it as a new upload." />
+            <div className="content fade-up" key="uploads"><UploadsPage currentId={current.id} /></div>
+          </>
+        ) : current.empty ? (
+          <>
+            <TopBar title="Dashboard" sub="No uploads yet" />
+            <div className="content fade-up">
+              <Panel>
+                <EmptyState title="No monitoring data yet"
+                  action={<button type="button" className="btn primary" onClick={() => navigate({ screen: 'uploads' })}>Go to Uploads</button>}>
+                  Upload a CSV of health checks. Once it’s cleaned and saved, this page shows availability, SLA status, incidents and every check.
+                </EmptyState>
+              </Panel>
             </div>
-          </div>
-
-          <Dashboard uploadId={lastUpload.id} />
-          <Logs uploadId={lastUpload.id} />
-        </div>
-      )}
-
-      {!showDashboard && uploads.length > 0 && (
-        <div className="panel">
-          <h2>Recent Uploads</h2>
-          <table className="table">
-            <thead>
-              <tr>
-                <th>File</th>
-                <th>Uploaded</th>
-                <th>Checks</th>
-              </tr>
-            </thead>
-            <tbody>
-              {uploads.slice(0, 10).map((u) => (
-                <tr key={u.id}>
-                  <td>{u.fileName}</td>
-                  <td style={{ fontSize: '12px', color: 'var(--ink-2)' }}>
-                    {new Date(u.uploadedAt).toLocaleString()}
-                  </td>
-                  <td>{u.rowsStored.toLocaleString()}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+          </>
+        ) : current.error && !current.upload ? (
+          <>
+            <TopBar title="Dashboard" sub="" />
+            <div className="content">
+              <ErrorBox title="This upload could not be loaded" error={current.error} />
+              <div><button type="button" className="btn" onClick={() => navigate({ screen: 'dashboard' })}>Open the latest upload</button></div>
+            </div>
+          </>
+        ) : (
+          <>
+            <UploadTopBar upload={current.upload} />
+            <div className="content fade-up" key={current.id}><DashboardPage uploadId={current.id} upload={current.upload} /></div>
+          </>
+        )}
+      </main>
     </div>
   );
 }

@@ -1,3 +1,4 @@
+/* The only place colours, fonts and motion are defined (DESIGN.md → Colors). Components use these tokens only. */
 :root {
   --surface: #ffffff;
   --surface-2: #f7f8fa;
@@ -10,18 +11,37 @@
   --accent: #3654d6;
   --accent-soft: #e8ecfc;
   --accent-ink: #2a44b4;
+  --on-accent: #ffffff;
   --crit: #d03b3b;
   --crit-ink: #b42f2f;
   --crit-soft: #fbeaea;
+  --band: rgba(208, 59, 59, 0.16);
+  --heat1: #f3b3b3;
+  --heat2: #e37777;
   --good: #0ca30c;
   --good-ink: #0a6e0a;
   --good-soft: #e7f6e7;
-  --heat1: #f3b3b3;
-  --heat2: #e37777;
+  --warn: #fab219;
+  --warn-ink: #a15c00;
+  --on-warn: #3a2a00;
+  --tip-bg: #0f1522;
+  --tip-ink: #f2f4f8;
+  --backdrop: rgba(8, 11, 16, 0.5);
+  --shadow-pop: 0 12px 32px rgba(10, 14, 20, 0.14);
+  --shadow-tip: 0 8px 28px rgba(0, 0, 0, 0.2);
+  --shadow-press: 0 1px 2px rgba(0, 0, 0, 0.08);
+
+  --sans: "Geist", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "Geist Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --radius: 12px;
+  --radius-sm: 8px;
+  --side-w: 252px;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
+    color-scheme: dark;
     --surface: #11161f;
     --surface-2: #161c27;
     --track: #1b2230;
@@ -36,15 +56,19 @@
     --crit: #e25555;
     --crit-ink: #f08a8a;
     --crit-soft: #2a1719;
-    --good: #3fc43f;
-    --good-ink: #3fc43f;
-    --good-soft: #12241a;
+    --band: rgba(226, 85, 85, 0.22);
     --heat1: #4d2428;
     --heat2: #8f3a3c;
+    --good-ink: #3fc43f;
+    --good-soft: #12241a;
+    --warn-ink: #e0a54a;
+    --tip-bg: #eceff5;
+    --tip-ink: #0f1522;
   }
 }
 
 :root[data-theme="dark"] {
+  color-scheme: dark;
   --surface: #11161f;
   --surface-2: #161c27;
   --track: #1b2230;
@@ -59,9 +83,12 @@
   --crit: #e25555;
   --crit-ink: #f08a8a;
   --crit-soft: #2a1719;
-  --good: #3fc43f;
-  --good-ink: #3fc43f;
-  --good-soft: #12241a;
+  --band: rgba(226, 85, 85, 0.22);
   --heat1: #4d2428;
   --heat2: #8f3a3c;
+  --good-ink: #3fc43f;
+  --good-soft: #12241a;
+  --warn-ink: #e0a54a;
+  --tip-bg: #eceff5;
+  --tip-ink: #0f1522;
 }

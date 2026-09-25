@@ -1,5 +1,9 @@
 // The only module that calls fetch (RULES.md → Frontend). Response types come from @sla/core, shared with the API.
-import { MAX_FILE_BYTES, MAX_GZIP_BYTES, type ApiErrorBody, type Page, type UploadCreated, type UploadSummary } from '@sla/core';
+import {
+  MAX_FILE_BYTES, MAX_GZIP_BYTES,
+  type ApiErrorBody, type ChecksPage, type HexPage, type IncidentRow, type LogSort, type LogTab, type Page,
+  type ServicesPage, type TimelinePage, type UploadCreated, type UploadDetail, type UploadStats, type UploadSummary,
+} from '@sla/core';
 
 /** A failed request, with the API's error body when there is one. */
 export class ApiError extends Error {
@@ -20,7 +24,7 @@ type Query = Record<string, string | number | undefined>;
 async function request<T>(path: string, init: RequestInit & { query?: Query } = {}): Promise<T> {
   const params = new URLSearchParams();
   for (const [k, v] of Object.entries(init.query ?? {})) if (v !== undefined && v !== '') params.set(k, String(v));
-  const qs = params.size ? `?${params}` : '';
+  const qs = params.toString() ? `?${params}` : '';
   let res: Response;
   try {
     res = await fetch(`${apiUrl()}${path}${qs}`, init);
@@ -35,31 +39,60 @@ async function request<T>(path: string, init: RequestInit & { query?: Query } = 
 }
 
 const MB = (n: number) => `${Math.round(n / 1_000_000)} MB`;
+const up = (id: string) => `/uploads/${encodeURIComponent(id)}`;
 
-/** Gzips the CSV in the browser (ADR-005) and uploads it. Size limits are checked here first so users get a clear message. */
-export async function uploadCsv(file: File, signal?: AbortSignal): Promise<UploadCreated> {
-  if (!/\.csv$/i.test(file.name)) throw new ApiError(400, { error: 'Only .csv files can be uploaded.' });
-  if (file.size > MAX_FILE_BYTES) throw new ApiError(413, { error: `The file is larger than ${MB(MAX_FILE_BYTES)}.` });
-  const gzipped = await new Response(file.stream().pipeThrough(new CompressionStream('gzip'))).blob();
-  if (gzipped.size > MAX_GZIP_BYTES) {
-    throw new ApiError(413, { error: `The file is ${MB(gzipped.size)} after compression; the limit is ${MB(MAX_GZIP_BYTES)}.` });
-  }
+/** Checks the file before anything is sent: .csv, ≤ 50 MB. Returns the message to show, or null. */
+export function checkFile(file: File): string | null {
+  if (!/\.csv$/i.test(file.name)) return 'Only .csv files can be uploaded.';
+  if (file.size > MAX_FILE_BYTES) return `The file is larger than ${MB(MAX_FILE_BYTES)}.`;
+  return null;
+}
+
+/** Gzips the CSV in the browser (ADR-005). */
+export async function gzipFile(file: File): Promise<Blob> {
+  const gz = await new Response(file.stream().pipeThrough(new CompressionStream('gzip'))).blob();
+  if (gz.size > MAX_GZIP_BYTES) throw new ApiError(413, { error: `The file is ${MB(gz.size)} after compression; the limit is ${MB(MAX_GZIP_BYTES)}.` });
+  return gz;
+}
+
+export function postUpload(fileName: string, gzipped: Blob, signal?: AbortSignal): Promise<UploadCreated> {
   return request<UploadCreated>('/uploads', {
     method: 'POST',
     body: gzipped,
-    headers: { 'Content-Type': 'application/gzip', 'x-file-name': file.name },
+    headers: { 'Content-Type': 'application/gzip', 'x-file-name': fileName },
     signal,
   });
 }
 
-export const getHealth = (signal?: AbortSignal) => request<{ ok: boolean; db: boolean }>('/health', { signal });
+export const getUploads = (q: { cursor?: string; limit?: number; q?: string } = {}, signal?: AbortSignal) =>
+  request<Page<UploadSummary>>('/uploads', { query: q, signal });
 
-export const getUploads = (opts: { cursor?: string; limit?: number; q?: string } = {}, signal?: AbortSignal) =>
-  request<Page<UploadSummary>>('/uploads', { query: opts, signal });
+export const getUpload = (id: string, signal?: AbortSignal) => request<UploadDetail>(up(id), { signal });
 
-// Dashboard reads: not served by the API yet (404) — kept so the current screens compile; typed with the read endpoints.
-export const getStats = <T,>(uploadId: string, signal?: AbortSignal) =>
-  request<T>(`/uploads/${encodeURIComponent(uploadId)}/stats`, { signal });
+export const getStats = (id: string, signal?: AbortSignal) => request<UploadStats>(`${up(id)}/stats`, { signal });
 
-export const getLogs = <T,>(uploadId: string, filters: Query = {}, signal?: AbortSignal) =>
-  request<T>(`/uploads/${encodeURIComponent(uploadId)}/checks`, { query: filters, signal });
+export const getServices = (id: string, q: { q?: string; cursor?: string; limit?: number }, signal?: AbortSignal) =>
+  request<ServicesPage>(`${up(id)}/services`, { query: q, signal });
+
+export const getHex = (id: string, serviceId: string, q: { from: number; days: number }, signal?: AbortSignal) =>
+  request<HexPage>(`${up(id)}/services/${encodeURIComponent(serviceId)}/hex`, { query: q, signal });
+
+export const getTimeline = (id: string, q: { bins: number; offset: number; limit: number }, signal?: AbortSignal) =>
+  request<TimelinePage>(`${up(id)}/timeline`, { query: q, signal });
+
+export const getIncidents = (id: string, q: { cursor?: string; limit?: number }, signal?: AbortSignal) =>
+  request<Page<IncidentRow>>(`${up(id)}/incidents`, { query: q, signal });
+
+/** Logs filters. `to` is exclusive. */
+export interface ChecksQuery {
+  from?: string;
+  to?: string;
+  service?: string;
+  agent?: string;
+  region?: string;
+  tab: LogTab;
+  sort: LogSort;
+}
+
+export const getChecks = (id: string, q: ChecksQuery & { cursor?: string; limit: number }, signal?: AbortSignal) =>
+  request<ChecksPage>(`${up(id)}/checks`, { query: { ...q }, signal });
