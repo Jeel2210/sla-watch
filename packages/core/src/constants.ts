@@ -15,6 +15,13 @@ export const LATENCY_UNITS: Readonly<Record<string, number>> = { ms: 1, s: 1000,
 export const MAX_ROWS = 1_000_000;
 /** Upload limits (SECURITY.md T1): a longer line is rejected, never parsed. */
 export const MAX_LINE_CHARS = 4_096;
+/** Largest CSV accepted, in bytes (SECURITY.md T1/T2): checked in the browser and as the Lambda's decompressed cap. */
+export const MAX_FILE_BYTES = 50_000_000;
+/**
+ * Largest gzip body, in bytes. A Function URL invocation is capped at 6 MB and a binary body arrives
+ * base64-encoded (4/3 larger), so ~4.4 MB of gzip is the most that reaches the Lambda.
+ */
+export const MAX_GZIP_BYTES = 4_400_000;
 /** Field caps (SECURITY.md → Input validation): longer values reject the row, never truncated. */
 export const MAX_ID_CHARS = 200;      // service_id, service_name
 export const MAX_LABEL_CHARS = 100;   // agent, region
