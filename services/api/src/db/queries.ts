@@ -114,22 +114,22 @@ export async function insertUpload(
 
   await insertRows(db, 'checks',
     ['upload_id', 'service_id', 'slot_ts', 'status_code', 'is_valid', 'is_failed', 'latency_ms', 'agents', 'region', 'quality_flags'],
-    clean.checks.map(c => [id, c.serviceId, iso(c.slot), c.status, c.isValid, c.isFailed, toInt(c.latencyMs), pgTextArray(c.agents), c.region, pgTextArray(c.flags)]));
+    clean.checks, c => [id, c.serviceId, iso(c.slot), c.status, c.isValid, c.isFailed, toInt(c.latencyMs), pgTextArray(c.agents), c.region, pgTextArray(c.flags)]);
   await insertRows(db, 'rejected_rows', ['upload_id', 'line_no', 'raw', 'reason'],
-    clean.rejected.map(x => [id, x.line, x.raw, x.reason]));
+    clean.rejected, x => [id, x.line, x.raw, x.reason]);
   await insertRows(db, 'services', ['upload_id', 'service_id', 'service_name'],
-    clean.services.map(s => [id, s.id, s.name]));
+    clean.services, s => [id, s.id, s.name]);
   await insertRows(db, 'service_stats',
     ['upload_id', 'service_id', 'valid', 'failed', 'present', 'availability', 'downtime_min', 'p50_ms', 'p95_ms', 'incidents',
       'longest_incident_min', 'expected', 'met', 'allowed_downtime_min', 'times_allowance', 'coverage'],
-    input.stats.map(s => {
+    input.stats, s => {
       const inc = perService.get(s.serviceId);
       return [id, s.serviceId, s.valid, s.failed, s.present, s.availability, Math.round(s.downtimeMin), toInt(s.p50Ms), toInt(s.p95Ms),
         inc?.count ?? 0, inc?.longestMin ?? null, s.expected, s.met, s.allowedDowntimeMin, s.timesAllowance, s.coverage];
-    }));
+    });
   await insertRows(db, 'hourly_failures', ['upload_id', 'service_id', 'hour_ts', 'checks', 'failed'],
-    input.hourly.map(h => [id, h.serviceId, iso(h.hour), h.checks, h.failed]));
+    input.hourly, h => [id, h.serviceId, iso(h.hour), h.checks, h.failed]);
   await insertRows(db, 'incidents', ['upload_id', 'service_id', 'start_ts', 'end_ts', 'failed', 'median_latency_ms', 'normal_latency_ms'],
-    input.incidents.map(i => [id, i.serviceId, iso(i.start), iso(i.end), i.failedChecks, toInt(i.medianLatencyMs), toInt(i.normalLatencyMs)]));
+    input.incidents, i => [id, i.serviceId, iso(i.start), iso(i.end), i.failedChecks, toInt(i.medianLatencyMs), toInt(i.normalLatencyMs)]);
   return upload;
 }

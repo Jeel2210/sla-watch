@@ -8,7 +8,9 @@ param(
   [string]$DatabaseUrl = $env:DATABASE_URL,
   [string]$AllowedOrigin = $env:ALLOWED_ORIGIN,
   [string]$FunctionName = "sla-watch-api",
-  [string]$Region = "ap-south-1"
+  [string]$Region = "ap-south-1",
+  # Same as MemorySize in template.yaml: a 50 MB CSV needs well over 512 MB.
+  [int]$MemoryMB = 2048
 )
 
 $ErrorActionPreference = "Stop"
@@ -44,7 +46,7 @@ Step "Uploading code to $FunctionName ($Region)"
 Invoke-Native { & $aws lambda update-function-code --function-name $FunctionName --region $Region --zip-file "fileb://$zipPath" --query LastUpdateStatus --output text } "update-function-code"
 Invoke-Native { & $aws lambda wait function-updated-v2 --function-name $FunctionName --region $Region } "wait function-updated"
 
-Step "Updating configuration (handler, env)"
+Step "Updating configuration (handler, memory $MemoryMB MB, env)"
 $current = & $aws lambda get-function-configuration --function-name $FunctionName --region $Region --output json | ConvertFrom-Json
 $vars = @{}
 if ($current.Environment -and $current.Environment.Variables) {
@@ -59,7 +61,7 @@ if (-not $vars["ALLOWED_ORIGIN"]) { $vars["ALLOWED_ORIGIN"] = "*" }
 $envFile = Join-Path $env:TEMP "sla-watch-env-$PID.json"
 try {
   [System.IO.File]::WriteAllText($envFile, (@{ Variables = $vars } | ConvertTo-Json -Compress), [System.Text.UTF8Encoding]::new($false))
-  Invoke-Native { & $aws lambda update-function-configuration --function-name $FunctionName --region $Region --handler index.handler --environment "file://$envFile" --query LastUpdateStatus --output text } "update-function-configuration"
+  Invoke-Native { & $aws lambda update-function-configuration --function-name $FunctionName --region $Region --handler index.handler --memory-size $MemoryMB --environment "file://$envFile" --query LastUpdateStatus --output text } "update-function-configuration"
 } finally {
   Remove-Item $envFile -Force -ErrorAction SilentlyContinue
 }

@@ -6,6 +6,8 @@ set -euo pipefail
 
 FUNCTION_NAME="sla-watch-api"
 REGION="ap-south-1"
+# Same as MemorySize in template.yaml: a 50 MB CSV needs well over 512 MB.
+MEMORY_MB=2048
 NEW_DATABASE_URL="${DATABASE_URL:-}"
 NEW_ALLOWED_ORIGIN="${ALLOWED_ORIGIN:-}"
 
@@ -43,7 +45,7 @@ aws lambda update-function-code --function-name "$FUNCTION_NAME" --region "$REGI
   --zip-file "fileb://$ZIP_PATH" --query LastUpdateStatus --output text
 aws lambda wait function-updated-v2 --function-name "$FUNCTION_NAME" --region "$REGION"
 
-step "Updating configuration (handler, env)"
+step "Updating configuration (handler, memory ${MEMORY_MB} MB, env)"
 ENV_FILE="$(mktemp)"
 trap 'rm -f "$ENV_FILE"' EXIT
 aws lambda get-function-configuration --function-name "$FUNCTION_NAME" --region "$REGION" --output json \
@@ -57,7 +59,7 @@ aws lambda get-function-configuration --function-name "$FUNCTION_NAME" --region 
         process.stdout.write(JSON.stringify({ Variables: vars }));
       });' > "$ENV_FILE"
 aws lambda update-function-configuration --function-name "$FUNCTION_NAME" --region "$REGION" \
-  --handler index.handler --environment "file://$ENV_FILE" --query LastUpdateStatus --output text
+  --handler index.handler --memory-size "$MEMORY_MB" --environment "file://$ENV_FILE" --query LastUpdateStatus --output text
 aws lambda wait function-updated-v2 --function-name "$FUNCTION_NAME" --region "$REGION"
 
 step "Smoke test GET /health"

@@ -36,6 +36,12 @@ function decodeUtf8(bytes: Buffer): string {
   }
 }
 
+/** Body → CSV text + its hash. The decompressed bytes go out of scope here, so only the text stays in memory. */
+function receive(event: ApiEvent): { text: string; sha256: string } {
+  const bytes = readCsvBody(event);
+  return { text: decodeUtf8(bytes), sha256: createHash('sha256').update(bytes).digest('hex') };
+}
+
 async function created(u: UploadRow, duplicate: boolean): Promise<UploadCreated> {
   return { ...toUploadSummary(u), duplicate, issues: u.issues, rejectedSample: await rejectedSample(db, u.id, REJECTED_SAMPLE) };
 }
@@ -43,9 +49,7 @@ async function created(u: UploadRow, duplicate: boolean): Promise<UploadCreated>
 /** POST /uploads — 201 new upload, 200 same file uploaded before; nothing is stored on any error. */
 export async function postUpload(req: Req): Promise<Reply> {
   const fileName = fileNameParam(req.header('x-file-name'));
-  const bytes = readCsvBody(req.event);
-  const text = decodeUtf8(bytes);
-  const sha256 = createHash('sha256').update(bytes).digest('hex');
+  const { text, sha256 } = receive(req.event);
 
   const existing = await findUploadBySha256(db, sha256);
   if (existing) return { status: 200, body: await created(existing, true), log: { uploadId: existing.id, rows: existing.rows_stored } };

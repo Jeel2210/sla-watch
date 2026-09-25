@@ -13,7 +13,7 @@ Parameters:
 Globals:
   Function:
     Timeout: 120
-    MemorySize: 512
+    MemorySize: 2048   # a 50 MB CSV (~460k rows) peaks well above 512 MB; more memory also means more CPU
     Runtime: nodejs24.x
     Environment:
       Variables:
