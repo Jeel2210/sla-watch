@@ -23,6 +23,7 @@ export interface UploadSummary extends RowSummary {
   intervalMin: number;
   services: number;
   expectedChecks: number;
+  missedSla: number;      // services below the SLA target
 }
 
 /** `POST /uploads` → 201 (new) or 200 (same file uploaded before, `duplicate: true`). */

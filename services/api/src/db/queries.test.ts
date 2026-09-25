@@ -66,3 +66,12 @@ describe('listUploads', () => {
     expect((await listUploads(t.db, { limit: 10, search: '%extra\\_2\\%%' })).rows.map(r => r.file_name)).toEqual(['extra_2%.csv']);
   });
 });
+
+describe('missed-SLA count on every upload read', () => {
+  it('list and lookup carry how many services missed the SLA', async () => {
+    const byList = (await listUploads(t.db, { limit: 10 })).rows.find(r => r.file_sha256 === 'sha-30d')!;
+    const expected = serviceStats(clean).filter(s => s.met === false).length;
+    expect(toUploadSummary(byList).missedSla).toBe(expected);
+    expect(toUploadSummary((await findUploadBySha256(t.db, 'sha-30d'))!).missedSla).toBe(expected);
+  });
+});

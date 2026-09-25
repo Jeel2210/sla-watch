@@ -3,14 +3,14 @@
 import { AGENT_MULTI, type LogSort, type LogTab } from '@sla/core';
 import type { Db } from './client';
 import { pgTextArray } from './insert';
-import type { UploadRow } from './queries';
+import { UPLOAD_SELECT, type UploadRow } from './queries';
 
 // pg returns numeric as string and count(*) as bigint string; these read them back as numbers.
 const num = (v: unknown) => Number(v);
 const numOrNull = (v: unknown) => (v === null || v === undefined ? null : Number(v));
 
 export async function getUpload(db: Db, id: string): Promise<UploadRow | undefined> {
-  return (await db.query<UploadRow>('select * from uploads where id = $1', [id])).rows[0];
+  return (await db.query<UploadRow>(`${UPLOAD_SELECT} where u.id = $1`, [id])).rows[0];
 }
 
 export async function serviceNames(db: Db, uploadId: string, limit: number): Promise<string[]> {

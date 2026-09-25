@@ -60,8 +60,8 @@ export async function postUpload(req: Req): Promise<Reply> {
     stats: serviceStats(clean), incidents: detectIncidents(clean), hourly: hourlyFailures(clean),
   };
   const stored = await transaction(tx => insertUpload(tx, input));
-  // undefined: the same file was stored by a parallel request between our lookup and insert.
-  const upload = stored ?? (await findUploadBySha256(db, sha256));
+  // Read it back (with its missed-SLA count). `stored` undefined: a parallel request stored the same file first.
+  const upload = await findUploadBySha256(db, sha256);
   if (!upload) throw new Error('Upload vanished after a sha256 conflict');
   return { status: stored ? 201 : 200, body: await created(upload, !stored), log: { uploadId: upload.id, rows: upload.rows_stored } };
 }

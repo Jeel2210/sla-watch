@@ -29,7 +29,13 @@ export interface UploadRow {
   regions: string[];
   interval_hits: number | null;
   total_gaps: number | null;
+  /** Services that missed the SLA; present when read with UPLOAD_SELECT. */
+  missed_sla?: number;
 }
+
+/** Every read of an upload row goes through this, so the summary always carries its missed-SLA count. */
+export const UPLOAD_SELECT = `select u.*, (select count(*) from service_stats s where s.upload_id = u.id and s.met = false)::int as missed_sla
+  from uploads u`;
 
 export function toUploadSummary(u: UploadRow): UploadSummary {
   const intervalMs = u.interval_min * 60_000;
@@ -48,11 +54,12 @@ export function toUploadSummary(u: UploadRow): UploadSummary {
     rowsMerged: u.rows_merged,
     rowsFixed: u.rows_fixed,
     rowsRejected: u.rows_rejected,
+    missedSla: u.missed_sla ?? 0,
   };
 }
 
 export async function findUploadBySha256(db: Db, sha256: string): Promise<UploadRow | undefined> {
-  const r = await db.query<UploadRow>('select * from uploads where file_sha256 = $1', [sha256]);
+  const r = await db.query<UploadRow>(`${UPLOAD_SELECT} where u.file_sha256 = $1`, [sha256]);
   return r.rows[0];
 }
 
@@ -70,10 +77,10 @@ export async function listUploads(
   opts: { limit: number; after?: { uploadedAt: string; id: string }; search?: string },
 ): Promise<{ rows: UploadRow[]; hasMore: boolean }> {
   const r = await db.query<UploadRow>(
-    `select * from uploads
-      where ($1::text is null or file_name ilike $1)
-        and ($2::timestamptz is null or (uploaded_at, id) < ($2::timestamptz, $3::uuid))
-      order by uploaded_at desc, id desc
+    `${UPLOAD_SELECT}
+      where ($1::text is null or u.file_name ilike $1)
+        and ($2::timestamptz is null or (u.uploaded_at, u.id) < ($2::timestamptz, $3::uuid))
+      order by u.uploaded_at desc, u.id desc
       limit $4`,
     [opts.search ?? null, opts.after?.uploadedAt ?? null, opts.after?.id ?? null, opts.limit + 1],
   );

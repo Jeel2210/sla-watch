@@ -32,7 +32,8 @@ const bodyOf = async (p: ReturnType<typeof post>) => { const r = await p; return
 const uploadRow = () => fixture({ range_end: new Date('2025-04-14T23:45:00Z'), services: 2, rows_total: 4672, rows_stored: 4320, rows_merged: 352, expected_checks: 4320 });
 
 beforeEach(() => {
-  q.findUploadBySha256.mockReset().mockResolvedValue(undefined);
+  // First lookup: not stored yet. After the insert, the route reads the stored row back.
+  q.findUploadBySha256.mockReset().mockResolvedValueOnce(undefined).mockResolvedValue(uploadRow());
   q.insertUpload.mockReset().mockImplementation(async () => uploadRow());
 });
 
@@ -71,14 +72,14 @@ describe('POST /uploads — stored', () => {
     expect(r.body).toMatchObject({ id: 'u1', duplicate: false, days: 9, intervalMin: 15, rowsStored: 4320, rejectedSample: [] });
   });
   it('same file again → 200 duplicate, nothing inserted', async () => {
-    q.findUploadBySha256.mockResolvedValue(uploadRow());
+    q.findUploadBySha256.mockReset().mockResolvedValue(uploadRow());
     const r = await bodyOf(post(gzipSync(SAMPLE)));
     expect(r).toMatchObject({ status: 200, body: { id: 'u1', duplicate: true } });
     expect(q.insertUpload).not.toHaveBeenCalled();
   });
   it('same file stored by a parallel request → 200 duplicate', async () => {
     q.insertUpload.mockResolvedValue(undefined);
-    q.findUploadBySha256.mockResolvedValueOnce(undefined).mockResolvedValueOnce(uploadRow());
+    q.findUploadBySha256.mockReset().mockResolvedValueOnce(undefined).mockResolvedValue(uploadRow());
     expect(await bodyOf(post(gzipSync(SAMPLE)))).toMatchObject({ status: 200, body: { duplicate: true } });
   });
   it('database error → 500 without details', async () => {
