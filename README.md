@@ -5,10 +5,10 @@ a single-screen dashboard shows per-service SLA stats (collapsible) and every ch
 
 | | Status |
 |---|---|
-| **Core logic** | ✅ Phase 1 complete: 91 tests, 5 samples + stress verified |
-| **API (Lambda + Neon)** | ✅ Phase 2 complete: handler, upload, health endpoints; ready for `sam deploy` |
-| **Web (React)** | 🔨 Phase 3 in progress: upload UI working; logs/dashboard views pending |
-| **Live URLs** | _not deployed yet_: awaiting Phase 3 completion and AWS/Vercel setup |
+| **Live app** | https://sla-watch-tau.vercel.app |
+| **Live API** | https://nvxtvr5hy43lpsc5kvi22z2miu0htbmz.lambda-url.ap-south-1.on.aws (try `/health`) |
+| **Last verified live** | 25 Sep 2026: upload of the 9-day sample + every dashboard endpoint |
+| **Tests** | core: cleaner on all 5 samples + stress files · API: every route end to end on a real Postgres (PGlite) · web: 67 component/flow tests |
 | **Design reference** | https://claude.ai/artifact/Eusqy1vCS2BjZQnZqZWHC2 |
 
 ---
@@ -112,7 +112,7 @@ exactly 15 min, and every service has **exactly 96 checks per day** — the extr
 
 ## 4. Run and redeploy
 
-**Prerequisites:** Node 20, AWS CLI + SAM CLI, a Neon project, a Vercel account.
+**Prerequisites:** Node 20+, AWS CLI (configured), a Neon project, a Vercel account.
 
 ```bash
 # install (also enables the git checks: pre-commit, commit-msg, pre-push)
@@ -124,8 +124,11 @@ npm test
 # database — every migration, in order (each is safe to re-run from 002 on)
 for f in services/api/src/db/migrations/*.sql; do psql "$DATABASE_URL" -f "$f"; done
 
-# API (AWS Lambda) — prints the Function URL
-cd services/api && sam build && sam deploy --guided   # params: DatabaseUrl, AllowedOrigin
+# API (AWS Lambda) — builds one bundle, updates the function, keeps its env vars, checks /health, prints the URL
+./services/api/deploy.sh                                              # macOS / Linux / Git Bash
+powershell -ExecutionPolicy Bypass -File .servicesapideploy.ps1   # Windows
+#   first time or to change settings: -d/-DatabaseUrl <neon url>  -o/-AllowedOrigin https://sla-watch-tau.vercel.app
+# first-time stack (function, Function URL, concurrency 5): cd services/api && sam deploy --guided
 
 # API (local) — needs Docker. Put DATABASE_URL in services/api/env.json (git-ignored; names in .env.example)
 cd services/api && sam build && sam local start-api --env-vars env.json   # http://127.0.0.1:3000
@@ -133,8 +136,8 @@ cd services/api && sam build && sam local start-api --env-vars env.json   # http
 # web (local)
 cd apps/web && VITE_API_URL=<function-url> npm run dev
 
-# web (deploy)
-vercel --prod   # project root: apps/web, env VITE_API_URL
+# web (deploy): Vercel builds apps/web on every push to main (env VITE_API_URL = the API URL)
+git push   # or: cd apps/web && vercel --prod
 ```
 
 **If the free-tier resources were paused or deleted:** re-run the three deploy steps above (≈ 5 minutes);
