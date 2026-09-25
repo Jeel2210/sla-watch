@@ -153,10 +153,14 @@ next log page prefetched; in-flight requests cancelled when filters change.
 │  └─ stress/                   generated stress CSVs + stress_incident_log.json (not committed)
 ├─ packages/
 │  └─ core/                     PURE TypeScript — no I/O, no framework
-│     ├─ src/clean.ts           cleanCsv(): parse · validate · normalise · merge
-│     ├─ src/sla.ts             availability, downtime, allowance, percentiles, coverage
+│     ├─ src/constants.ts       every tunable number (SLA target, incident gap, units)
+│     ├─ src/types.ts           Check, CleanResult, ServiceStat, Incident, HourlyFailure
+│     ├─ src/csv.ts · timestamp.ts · row.ts   line splitting, UTC parsing, row validation
+│     ├─ src/clean.ts           cleanCsv(): validate · detect interval · snap · merge
+│     ├─ src/sla.ts             availability, downtime, allowance, p50/p95, coverage
 │     ├─ src/incidents.ts       incident grouping
-│     ├─ src/types.ts           Check, Upload, Report … (shared with web)
+│     ├─ src/hourly.ts          hourly failure counts (hex map, timeline)
+│     ├─ src/batch.ts           batches() helper for Lambda writes
 │     └─ test/                  fixture tests on data/samples/ and data/stress/
 ├─ services/
 │  └─ api/                      AWS Lambda

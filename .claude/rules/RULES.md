@@ -13,7 +13,7 @@
 - **Never duplicate logic.** If the same rule is needed twice, move it to `core` (logic) or `components` (UI).
 - Small, pure functions; one job each. Files over ~250 lines are a sign to split.
 - Names say what things are in the user's words: `failedChecks`, `allowedDowntimeMin`, not `cnt2`, `tmp`.
-- No magic numbers: `TARGET = 99.9`, `SVC_PAGE = 5`, `INCIDENT_GAP_SLOTS = 4` live in one constants file.
+- No magic numbers: `SLA_TARGET = 99.9`, `INCIDENT_MAX_GAP_MIN = 60`, `INCIDENT_MIN_RUN = 2` live in `packages/core/src/constants.ts`; UI constants (e.g. `SVC_PAGE = 5`) in one web constants file.
 - Every line must be explainable in an interview. No copied code you can't defend.
 
 ## Before coding
