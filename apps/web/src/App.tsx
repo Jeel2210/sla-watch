@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { uploadCsv, getUploads, getHealth } from './api/client';
+import { Dashboard } from './features/Dashboard';
+import { Logs } from './features/Logs';
 import './styles/index.css';
 
 interface UploadSummary {
@@ -21,6 +23,7 @@ export default function App() {
   const [message, setMessage] = useState<string>('');
   const [uploads, setUploads] = useState<Upload[]>([]);
   const [lastUpload, setLastUpload] = useState<UploadSummary | null>(null);
+  const [showDashboard, setShowDashboard] = useState(false);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.currentTarget.files?.[0];
@@ -32,6 +35,7 @@ export default function App() {
     try {
       const result = await uploadCsv(file);
       setLastUpload(result);
+      setShowDashboard(true);
       setStatus('success');
       setMessage(
         `✓ ${result.duplicate ? 'Duplicate upload' : 'Upload successful'}. Stored ${result.rowsStored} checks.`
@@ -68,6 +72,7 @@ export default function App() {
     try {
       const result = await uploadCsv(file);
       setLastUpload(result);
+      setShowDashboard(true);
       setStatus('success');
       setMessage(
         `✓ ${result.duplicate ? 'Duplicate upload' : 'Upload successful'}. Stored ${result.rowsStored} checks.`
@@ -156,7 +161,30 @@ export default function App() {
         </div>
       )}
 
-      {uploads.length > 0 && (
+      {showDashboard && lastUpload && (
+        <div>
+          <div style={{ marginBottom: '16px' }}>
+            <button
+              onClick={() => setShowDashboard(false)}
+              style={{ padding: '8px 16px', fontSize: '13px' }}
+            >
+              ← Back to Upload
+            </button>
+          </div>
+
+          <div style={{ marginBottom: '20px', padding: '16px', backgroundColor: 'var(--surface-2)', borderRadius: '8px' }}>
+            <strong>{lastUpload.fileName}</strong>
+            <div style={{ fontSize: '12px', color: 'var(--ink-2)', marginTop: '4px' }}>
+              {lastUpload.rowsStored.toLocaleString()} checks stored · {lastUpload.rowsMerged} merged · {lastUpload.rowsFixed} fixed
+            </div>
+          </div>
+
+          <Dashboard uploadId={lastUpload.id} />
+          <Logs uploadId={lastUpload.id} />
+        </div>
+      )}
+
+      {!showDashboard && uploads.length > 0 && (
         <div className="panel">
           <h2>Recent Uploads</h2>
           <table className="table">
