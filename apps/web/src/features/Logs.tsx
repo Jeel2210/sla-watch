@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-
-const API_URL = (import.meta.env.VITE_API_URL as string) || 'http://localhost:3000';
+import { getLogs } from '../api/client';
 
 interface Check {
   upload_id: string;
@@ -24,18 +23,14 @@ export function Logs({ uploadId }: { uploadId: string }) {
 
   const logsQuery = useQuery({
     queryKey: ['logs', uploadId, { service: filterService, status: filterStatus }],
-    queryFn: async () => {
-      // TODO: wire to GET /uploads/:id/checks when available
-      return {
-        checks: [] as Check[],
-        totalCount: 0,
-      };
-    },
+    queryFn: () => getLogs(uploadId, { service: filterService }),
+    retry: 1,
+    staleTime: 5 * 60 * 1000,
   });
 
   if (logsQuery.isPending) return <div className="loading">Loading logs...</div>;
 
-  const checks = logsQuery.data?.checks || [];
+  const checks = (logsQuery.data?.rows || []) as Check[];
   const failedCount = checks.filter((c) => c.is_failed).length;
   const changedCount = checks.filter((c) => c.quality_flags.length > 0).length;
 

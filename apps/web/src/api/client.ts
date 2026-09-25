@@ -1,4 +1,5 @@
-const API_URL = (import.meta.env.VITE_API_URL as string) || 'http://localhost:3000';
+// Use the Lambda Function URL for all API calls
+const API_URL = import.meta.env.VITE_API_URL || 'https://nvxtvr5hy43lpsc5kvi22z2miu0htbmz.lambda-url.ap-south-1.on.aws';
 
 export async function uploadCsv(file: File): Promise<{
   id: string;
@@ -47,5 +48,24 @@ export async function getUploads(options?: { cursor?: string; limit?: number; q?
   if (options?.q) params.set('q', options.q);
 
   const response = await fetch(`${API_URL}/uploads?${params}`);
+  return response.json();
+}
+
+export async function getStats(uploadId: string) {
+  const response = await fetch(`${API_URL}/uploads/${uploadId}/stats`);
+  if (!response.ok) throw new Error('Failed to fetch stats');
+  return response.json();
+}
+
+export async function getLogs(uploadId: string, filters?: { from?: string; to?: string; service?: string; cursor?: string; limit?: number }) {
+  const params = new URLSearchParams();
+  if (filters?.from) params.set('from', filters.from);
+  if (filters?.to) params.set('to', filters.to);
+  if (filters?.service) params.set('service', filters.service);
+  if (filters?.cursor) params.set('cursor', filters.cursor);
+  if (filters?.limit) params.set('limit', filters.limit.toString());
+
+  const response = await fetch(`${API_URL}/uploads/${uploadId}/checks?${params}`);
+  if (!response.ok) throw new Error('Failed to fetch logs');
   return response.json();
 }

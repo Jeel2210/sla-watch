@@ -1,20 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-
-const API_URL = (import.meta.env.VITE_API_URL as string) || 'http://localhost:3000';
-
-interface UploadStats {
-  id: string;
-  fileName: string;
-  uploadedAt: string;
-  rangeStart: string;
-  rangeEnd: string;
-  services: number;
-  rowsStored: number;
-  interval_min: number;
-  expected_checks: number;
-  issues: Record<string, any>;
-}
+import { getStats } from '../api/client';
 
 interface ServiceStat {
   service_id: string;
@@ -32,17 +18,12 @@ interface ServiceStat {
 export function Dashboard({ uploadId }: { uploadId: string }) {
   const [collapsed, setCollapsed] = useState(false);
 
-  // Placeholder data fetch (will be wired to API in phase 3+)
+  // Fetch service stats from API using TanStack Query
   const statsQuery = useQuery({
     queryKey: ['stats', uploadId],
-    queryFn: async () => {
-      // TODO: wire to GET /uploads/:id/stats when available
-      return {
-        stats: [] as ServiceStat[],
-        incidents: 0,
-        missedSla: false,
-      };
-    },
+    queryFn: () => getStats(uploadId),
+    retry: 1,
+    staleTime: 5 * 60 * 1000,
   });
 
   if (statsQuery.isPending) return <div className="loading">Loading stats...</div>;
