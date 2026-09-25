@@ -72,3 +72,7 @@ dialog::backdrop { background: var(--backdrop); }
 /* pointer tooltip for charts */
 .hovertip { position: fixed; z-index: 45; pointer-events: none; background: var(--tip-bg); color: var(--tip-ink); border-radius: var(--radius-sm); font-size: 12.5px; line-height: 1.5; box-shadow: var(--shadow-tip); padding: 7px 10px; max-width: 260px; animation: fadeIn .12s; }
 .hovertip .dim { opacity: .75; }
+
+/* loading bar */
+.topprog { position: fixed; top: 0; left: 0; height: 2px; width: 0; background: var(--accent); z-index: 60; opacity: 0; transition: width .45s var(--ease), opacity .3s; }
+.topprog.on { opacity: 1; width: 72%; }

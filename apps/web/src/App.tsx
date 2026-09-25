@@ -1,5 +1,9 @@
+import { useState } from 'react';
+import { Icon } from './components/Icon';
+import { TopProgress } from './components/TopProgress';
 import { EmptyState, ErrorBox, Panel } from './components/ui';
 import { DashboardPage } from './features/dashboard/DashboardPage';
+import { DataReport } from './features/report/DataReport';
 import { Sidebar } from './features/shell/Sidebar';
 import { TopBar, UploadTopBar } from './features/shell/TopBar';
 import { useCurrentUpload } from './features/shell/useCurrentUpload';
@@ -9,11 +13,13 @@ import { navigate, useRoute } from './lib/router';
 export default function App() {
   const route = useRoute();
   const current = useCurrentUpload();
+  const [report, setReport] = useState(false);
 
   return (
     <div className="app">
       <Sidebar screen={route.screen} recent={current.recent} current={current.upload} />
       <main className="main">
+        <TopProgress />
         {route.screen === 'uploads' ? (
           <>
             <TopBar title="Uploads" sub="Add a monitoring CSV. The cleaning function checks and cleans every row, then saves it as a new upload." />
@@ -41,7 +47,10 @@ export default function App() {
           </>
         ) : (
           <>
-            <UploadTopBar upload={current.upload} />
+            <UploadTopBar upload={current.upload} actions={current.id && (
+              <button type="button" className="btn ghost" onClick={() => setReport(true)}><Icon name="report" size={14} />Data report</button>
+            )} />
+            {current.id && <DataReport uploadId={current.id} open={report} onClose={() => setReport(false)} />}
             <div className="content fade-up" key={current.id}><DashboardPage uploadId={current.id} upload={current.upload} /></div>
           </>
         )}

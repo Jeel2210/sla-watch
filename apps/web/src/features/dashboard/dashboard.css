@@ -9,7 +9,7 @@
 .itoggle button[aria-pressed="true"] .ibadge { background: var(--crit); color: var(--on-accent); }
 
 /* collapse: animate the row height; never leave content invisible (DESIGN.md → Motion) */
-.stats-body { display: grid; grid-template-rows: 1fr; transition: grid-template-rows .32s var(--ease), opacity .25s var(--ease); }
+.stats-body { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: 1fr; transition: grid-template-rows .32s var(--ease), opacity .25s var(--ease); }
 .stats-body > .sb-inner { overflow: hidden; min-height: 0; }
 .stats.collapsed .stats-body { grid-template-rows: 0fr; opacity: 0; }
 
@@ -30,5 +30,6 @@
   .kc { border-bottom: 1px solid var(--line); }
   .kc:nth-child(2n) { border-right: 0; }
   .kc .d { white-space: normal; }
+  .kc:last-child:nth-child(odd) { grid-column: 1 / -1; border-right: 0; }
 }
 @media (max-width: 640px) { .sh-scope { display: none; } }

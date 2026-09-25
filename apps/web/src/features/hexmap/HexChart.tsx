@@ -62,7 +62,7 @@ export function HexChart({ g, serviceName, onOpen, className = '' }: {
         ))}
         {g.rowLabels.map(l => <text key={l.y} className="hexaxis" x={0} y={l.y}>{l.text}</text>)}
         {g.colLabels.map(l => <text key={l.x} className="hexaxis" x={l.x} y={12} textAnchor="middle">{l.text}</text>)}
-        <text className="mtitle" x={g.sideX} y={12}>Per day</text>
+        <text className="mtitle" x={g.sideX} y={12}>{g.dayTitle}</text>
         {g.dayBars.map((b, i) => (
           <g key={i}>
             <rect className={`mbar${b.n ? '' : ' zero'}`} x={b.x} y={b.y} width={b.w} height={b.h} rx={2} />
@@ -75,7 +75,7 @@ export function HexChart({ g, serviceName, onOpen, className = '' }: {
             {b.peak && <text className="mval" x={b.x + b.w / 2} y={b.y - 4} textAnchor="middle">{b.n}</text>}
           </g>
         ))}
-        <text className="mtitle" x={g.sideX} y={g.hourTitleY}>Per time of day</text>
+        <text className="mtitle" x={g.sideX} y={g.hourTitleY}>{g.hourTitle}</text>
       </svg>
       <div className="sr-only" aria-live="polite">{current ? `${describe(current, serviceName)}. Press Enter to open these checks.` : ''}</div>
       <HoverTip tip={tip} />

@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import type { ServiceRow, UploadSummary } from '@sla/core';
 import { useUpload } from '../../api/hooks';
 import { Panel, Skeleton } from '../../components/ui';
+import { FullView } from '../hexmap/FullView';
 import { defaultFilters, withWindow, type LogFilters } from '../logs/logsFilter';
 import { LogsPanel } from '../logs/LogsPanel';
 import type { LogsWindow } from './logsWindow';
@@ -11,6 +12,7 @@ import './dashboard.css';
 function Dashboard({ upload }: { upload: UploadSummary }) {
   const [selected, setSelected] = useState<ServiceRow | undefined>();
   const [filters, setFilters] = useState<LogFilters>(() => defaultFilters(upload));
+  const [fullView, setFullView] = useState<ServiceRow | null>(null);
   const detail = useUpload(upload.id);
   // A chart click narrows the logs to that window and brings them into view.
   const openLogs = useCallback((w: LogsWindow) => {
@@ -21,8 +23,9 @@ function Dashboard({ upload }: { upload: UploadSummary }) {
 
   return (
     <>
-      <StatsPanel upload={upload} selected={selected} onSelect={setSelected} onOpenLogs={openLogs} />
+      <StatsPanel upload={upload} selected={selected} onSelect={setSelected} onOpenLogs={openLogs} onFullView={setFullView} />
       <LogsPanel upload={upload} detail={detail.data} filters={filters} onFilters={setFilters} />
+      <FullView uploadId={upload.id} intervalMin={upload.intervalMin} initial={fullView} onClose={() => setFullView(null)} onOpenLogs={openLogs} />
     </>
   );
 }

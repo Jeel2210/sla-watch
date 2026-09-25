@@ -59,6 +59,9 @@ export interface HexGeometry {
   hourBars: { x: number; y: number; w: number; h: number; n: number; peak: boolean }[];
   sideX: number;
   hourTitleY: number;
+  /** Bar titles; short on phones, where the side column is only 60px. */
+  dayTitle: string;
+  hourTitle: string;
   showValues: boolean;
 }
 
@@ -129,6 +132,6 @@ export function hexGeometry(days: HexDay[], width: number, radius?: number): Hex
 
   return {
     width, height: mapH + BOTTOM, r, cells, rowLabels, colLabels, dayBars, hourBars,
-    sideX, hourTitleY: colY + colH, showValues: !narrow,
+    sideX, hourTitleY: colY + colH, dayTitle: narrow ? 'Day' : 'Per day', hourTitle: narrow ? 'Hour' : 'Per time of day', showValues: !narrow,
   };
 }

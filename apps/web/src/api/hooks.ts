@@ -1,7 +1,7 @@
 // Server data for the whole app, through TanStack Query (ADR-012). Keys = endpoint + params.
 // Every queryFn passes TanStack's AbortSignal, so a request is cancelled when its filters change.
 import { keepPreviousData, useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { UploadCreated } from '@sla/core';
+import { HEX_MAX_DAYS, type HexDay, type UploadCreated } from '@sla/core';
 import { SERVICE_OPTIONS_PAGE, SVC_PAGE, TL_BINS, TL_PAGE } from '../lib/constants';
 import {
   checkFile, getChecks, getHex, getIncidents, getServices, getStats, getTimeline, getUpload, getUploads, gzipFile, postUpload,
@@ -18,6 +18,7 @@ export const keys = {
   incidents: (id: string) => ['incidents', id] as const,
   checks: (id: string, q: ChecksQuery, cursor: string | undefined, limit: number) => ['checks', id, q, cursor, limit] as const,
   serviceOptions: (id: string) => ['service-options', id] as const,
+  hexAll: (id: string, serviceId: string) => ['hex-all', id, serviceId] as const,
 };
 
 /** One page of uploads, newest first. Keeps the previous page on screen while the next loads. */
@@ -62,6 +63,24 @@ export function usePrefetchHex() {
   const qc = useQueryClient();
   return (id: string, serviceId: string, from: number, days: number) =>
     qc.prefetchQuery({ queryKey: keys.hex(id, serviceId, from, days), queryFn: ({ signal }) => getHex(id, serviceId, { from, days }, signal) });
+}
+
+/** Every day of one service (Full view), in requests of at most HEX_MAX_DAYS days. */
+export function useHexAll(id: string | undefined, serviceId: string | undefined, enabled: boolean) {
+  return useQuery({
+    queryKey: keys.hexAll(id ?? '', serviceId ?? ''),
+    queryFn: async ({ signal }) => {
+      const days: HexDay[] = [];
+      let total = Infinity;
+      for (let from = 0; from < total; from += HEX_MAX_DAYS) {
+        const page = await getHex(id!, serviceId!, { from, days: HEX_MAX_DAYS }, signal);
+        total = page.totalDays;
+        days.push(...page.days);
+      }
+      return days;
+    },
+    enabled: enabled && !!id && !!serviceId,
+  });
 }
 
 export function useTimeline(id: string | undefined, offset: number) {

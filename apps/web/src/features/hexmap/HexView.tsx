@@ -26,7 +26,8 @@ function HexMain({ uploadId, s, intervalMin, onOpenLogs, onFullView }: {
     if (mapTop.current) setChartTop(mapTop.current.getBoundingClientRect().top + window.scrollY);
   }, [box.width]);
 
-  const width = Math.max(320, box.width);
+  // The chart gets the box's inner width (clientWidth includes the 20px side padding).
+  const width = Math.max(300, box.width - 40);
   // Height left for the chart when the page is at the top: the whole chart is visible without scrolling.
   const perPage = daysPerPage(width, Math.max(220, viewport - chartTop - 44 - 24));
   const [page, setPage] = useState(0);

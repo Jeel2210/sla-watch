@@ -52,6 +52,10 @@ describe('hexGeometry', () => {
     expect(g.rowLabels.map(l => l.text)).toEqual(['22 Apr', '23 Apr']);
     expect(g.colLabels[0]!.text).toBe('00:00');
   });
+  it('bar titles shorten on phones so they fit the 60px side column', () => {
+    expect(hexGeometry(days, 400)).toMatchObject({ dayTitle: 'Day', hourTitle: 'Hour', showValues: false });
+    expect(g).toMatchObject({ dayTitle: 'Per day', hourTitle: 'Per time of day' });
+  });
   it('everything fits inside the width', () => {
     for (const c of g.cells) expect(c.path).toMatch(/^M/);
     for (const b of g.dayBars) expect(b.x + b.w).toBeLessThanOrEqual(g.width);
