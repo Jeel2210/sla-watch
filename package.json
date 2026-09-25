@@ -1,11 +1,22 @@
 {
   "name": "sla-watch",
   "private": true,
-  "workspaces": ["packages/*", "services/*", "apps/*"],
+  "packageManager": "npm@11.17.0",
+  "workspaces": [
+    "packages/*",
+    "services/*",
+    "apps/*"
+  ],
   "scripts": {
-    "test": "npm run test --workspaces --if-present",
-    "typecheck": "npm run typecheck --workspaces --if-present",
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
     "prepare": "git config core.hooksPath .githooks"
   },
-  "engines": { "node": ">=20" }
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "turbo": "^2.11.4"
+  }
 }

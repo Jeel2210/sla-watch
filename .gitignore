@@ -4,6 +4,7 @@ dist/
 build/
 .vite/
 .aws-sam/
+.turbo/
 .vercel/
 coverage/
 
