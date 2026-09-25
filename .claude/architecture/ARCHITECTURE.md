@@ -119,7 +119,7 @@ The raw CSV is **not** stored (free-tier storage); `rejected_rows` keeps the lin
 
 ## API
 
-All responses JSON. All list endpoints are **paged**; the browser never receives raw checks in bulk.
+All responses JSON, typed once in `packages/core/src/api-types.ts` (shared by API and web). All list endpoints are **paged**; the browser never receives raw checks in bulk. Ids that are not UUIDs are 404 before any SQL; bad query values are 400.
 
 | Method & path | Returns | Chunking |
 |---|---|---|
@@ -127,11 +127,11 @@ All responses JSON. All list endpoints are **paged**; the browser never receives
 | `GET /uploads?cursor&limit=20&q` | upload list with counts + missed-SLA | cursor |
 | `GET /uploads/:id` | upload + detected facts + issues (data report) | — |
 | `GET /uploads/:id/stats` | stat strip (missed, allowed, incidents, lowest, stored) | — |
-| `GET /uploads/:id/services?q&cursor&limit=5` | service rows, worst first | cursor, server search |
-| `GET /uploads/:id/services/:sid/hex?from&days` | hourly failure counts for one day-page | day window |
-| `GET /uploads/:id/timeline?bins=240&offset&limit=10` | per-service failure counts per bin | fixed bins × 10 services |
-| `GET /uploads/:id/incidents?cursor&limit=50` | incident rows | cursor |
-| `GET /uploads/:id/checks?from&to&service&agent&region&status&sort&cursor&limit=10` | log rows | keyset cursor `(slot_ts, service_id)` |
+| `GET /uploads/:id/services?q&cursor&limit=5` | service rows with every KPI, worst first, + `total` | cursor, server search (limit ≤ 20) |
+| `GET /uploads/:id/services/:sid/hex?from&days` | 24 hourly cells per UTC day (`from` = day index, `days` ≤ 31) | day window |
+| `GET /uploads/:id/timeline?bins=240&offset&limit=10` | per-service failure counts per bin + incident bin ranges | fixed bins × 10 services (offset) |
+| `GET /uploads/:id/incidents?cursor&limit=50` | incident rows in time order | cursor |
+| `GET /uploads/:id/checks?from&to&service&agent&region&tab&sort&cursor&limit=10` | log rows; tab counts on the first page. `to` exclusive; `agent=*` = 2+ agents; `tab` all/failed/changed; `sort` fail/old/new | keyset cursor per sort |
 | `GET /health` | `{ ok, db }` | — |
 
 **Why cursors:** `OFFSET` gets slower the deeper you page; a keyset cursor stays constant-time at 400k rows.

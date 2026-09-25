@@ -41,3 +41,28 @@ export function fileNameParam(value: string | undefined): string {
   const base = (value ?? '').split(/[\\/]/).pop()?.trim().slice(0, 200);
   return base || 'upload.csv';
 }
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/** Path id → the value, or 404 (an id that cannot exist is simply not found; never reaches SQL). */
+export function uuidParam(value: string | undefined, what: string): string {
+  if (!value || !UUID.test(value)) throw new HttpError(404, `${what} not found`);
+  return value;
+}
+
+/**
+ * ISO 8601 date (UTC midnight) or date-time with a zone (Z or ±hh:mm) → normalised ISO string; anything else → 400.
+ * A date-time without a zone is refused: it would be read in the server's local time.
+ */
+export function isoParam(value: string | undefined, name: string): string | undefined {
+  if (value === undefined || value === '') return undefined;
+  const ms = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2}))?$/.test(value) ? Date.parse(value) : NaN;
+  if (Number.isNaN(ms)) throw new HttpError(400, `${name} must be an ISO date or date-time`);
+  return new Date(ms).toISOString();
+}
+
+/** One of a fixed set of values; missing → `fallback`; anything else → 400. */
+export function enumParam<T extends string>(value: string | undefined, name: string, allowed: readonly T[], fallback: T): T {
+  if (value === undefined || value === '') return fallback;
+  if (!(allowed as readonly string[]).includes(value)) throw new HttpError(400, `${name} must be one of: ${allowed.join(', ')}`);
+  return value as T;
+}

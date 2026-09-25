@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { UploadRow } from './db/queries';
+import { uploadRow } from './test/fixtures';
 import { decodeCursor, encodeCursor } from './lib/params';
 import { handler } from './handler';
 
@@ -12,11 +12,7 @@ vi.spyOn(console, 'log').mockImplementation(() => {});
 const get = (rawPath: string, query: Record<string, string | undefined> = {}) =>
   handler({ rawPath, requestContext: { http: { method: 'GET' } }, queryStringParameters: query }, { awsRequestId: 'req-1' });
 
-const row = (id: string, at: string): UploadRow => ({
-  id, file_name: `${id}.csv`, file_sha256: id, uploaded_at: new Date(at), range_start: new Date('2025-04-06T00:00:00Z'),
-  range_end: new Date('2025-05-05T23:45:00Z'), interval_min: 15, services: 5, rows_total: 15577, rows_stored: 14400,
-  rows_merged: 1177, rows_fixed: 3280, rows_rejected: 0, expected_checks: 14400, issues: {} as UploadRow['issues'],
-});
+const row = (id: string, at: string) => uploadRow({ id, file_name: `${id}.csv`, file_sha256: id, uploaded_at: new Date(at) });
 
 beforeEach(() => { list.mockReset(); dbQuery.mockReset(); });
 
@@ -26,10 +22,16 @@ describe('routing', () => {
     expect(r.statusCode).toBe(204);
     expect(r.headers['Access-Control-Allow-Methods']).toContain('POST');
   });
-  it.each(['/nope', '/uploads/abc/stats', '/uploads/abc/checks'])('%s → 404 (not built yet, never an empty 200)', async path => {
+  it.each(['/nope', '/uploads/abc/unknown', '/uploads/a/b/c'])('unknown route %s → 404', async path => {
     const r = await get(path);
     expect(r.statusCode).toBe(404);
     expect(JSON.parse(r.body!)).toEqual({ error: 'Not found', requestId: 'req-1' });
+  });
+  it.each(['/uploads/abc/stats', "/uploads/1' or '1'='1/checks"])('id that is not a uuid (%s) → 404 before any SQL', async path => {
+    const r = await get(path);
+    expect(r.statusCode).toBe(404);
+    expect(JSON.parse(r.body!).error).toBe('Upload not found');
+    expect(dbQuery).not.toHaveBeenCalled();
   });
   it('trailing slash is ignored', async () => {
     dbQuery.mockResolvedValue({ rows: [] });

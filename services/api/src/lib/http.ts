@@ -16,6 +16,8 @@ export interface ApiResult { statusCode: number; headers: Record<string, string>
 export interface Req {
   event: ApiEvent;
   requestId: string;
+  /** Path parameters, e.g. `id` in /uploads/:id. */
+  params: Record<string, string | undefined>;
   query: Record<string, string | undefined>;
   header(name: string): string | undefined;
 }
@@ -43,11 +45,12 @@ export function json(statusCode: number, body: unknown): ApiResult {
   return { statusCode, headers: { 'Content-Type': 'application/json', ...corsHeaders() }, body: JSON.stringify(body) };
 }
 
-export function toReq(event: ApiEvent, context: ApiContext): Req {
+export function toReq(event: ApiEvent, context: ApiContext, params: Record<string, string | undefined> = {}): Req {
   const headers = event.headers ?? {};
   return {
     event,
     requestId: context.awsRequestId ?? crypto.randomUUID(),
+    params,
     query: event.queryStringParameters ?? {},
     header: name => headers[name.toLowerCase()],
   };

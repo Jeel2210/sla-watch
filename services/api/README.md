@@ -25,7 +25,7 @@ Run migrations on your Neon database:
 
 ```bash
 # In your Neon SQL editor or via psql:
-psql -c "$(cat services/api/src/db/migrations/001_init_schema.sql)" "$DATABASE_URL"
+for f in services/api/src/db/migrations/*.sql; do psql "$DATABASE_URL" -f "$f"; done   # 001 once; 002+ are re-runnable
 ```
 
 ### 2. Configure Environment

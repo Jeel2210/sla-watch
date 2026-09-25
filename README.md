@@ -121,8 +121,8 @@ npm install
 # tests (cleaner on all sample + stress files)
 npm test
 
-# database
-psql "$DATABASE_URL" -f services/api/src/db/migrations/001_init.sql
+# database — every migration, in order (each is safe to re-run from 002 on)
+for f in services/api/src/db/migrations/*.sql; do psql "$DATABASE_URL" -f "$f"; done
 
 # API (AWS Lambda) — prints the Function URL
 cd services/api && sam build && sam deploy --guided   # params: DatabaseUrl, AllowedOrigin

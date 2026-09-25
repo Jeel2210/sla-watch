@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { gzipSync } from 'node:zlib';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MAX_FILE_BYTES, MAX_GZIP_BYTES } from '@sla/core';
-import type { UploadRow } from '../db/queries';
+import { uploadRow as fixture } from '../test/fixtures';
 import type { ApiEvent } from '../lib/http';
 import { handler } from '../handler';
 
@@ -29,14 +29,7 @@ const post = (body: Buffer | string | null, fileName = 'checks.csv') => {
 };
 const bodyOf = async (p: ReturnType<typeof post>) => { const r = await p; return { status: r.statusCode, body: JSON.parse(r.body!) }; };
 
-function uploadRow(over: Partial<UploadRow> = {}): UploadRow {
-  return {
-    id: 'u1', file_name: 'checks.csv', file_sha256: 'x', uploaded_at: new Date('2026-09-25T00:00:00Z'),
-    range_start: new Date('2025-04-06T00:00:00Z'), range_end: new Date('2025-04-14T23:45:00Z'), interval_min: 15, services: 2,
-    rows_total: 4672, rows_stored: 4320, rows_merged: 352, rows_fixed: 900, rows_rejected: 0, expected_checks: 4320,
-    issues: {} as UploadRow['issues'], ...over,
-  };
-}
+const uploadRow = () => fixture({ range_end: new Date('2025-04-14T23:45:00Z'), services: 2, rows_total: 4672, rows_stored: 4320, rows_merged: 352, expected_checks: 4320 });
 
 beforeEach(() => {
   q.findUploadBySha256.mockReset().mockResolvedValue(undefined);

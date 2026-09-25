@@ -25,6 +25,10 @@ export interface UploadRow {
   rows_rejected: number;
   expected_checks: number;
   issues: CleanIssues;
+  agents: string[];
+  regions: string[];
+  interval_hits: number | null;
+  total_gaps: number | null;
 }
 
 export function toUploadSummary(u: UploadRow): UploadSummary {
@@ -87,13 +91,14 @@ export async function insertUpload(
   const { clean, summary } = input;
   const r = await db.query<UploadRow>(
     `insert into uploads (file_name, file_sha256, range_start, range_end, interval_min, services,
-       rows_total, rows_stored, rows_merged, rows_fixed, rows_rejected, expected_checks, issues)
-     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+       rows_total, rows_stored, rows_merged, rows_fixed, rows_rejected, expected_checks, issues,
+       agents, regions, interval_hits, total_gaps)
+     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
      on conflict (file_sha256) do nothing
      returning *`,
     [input.fileName, input.sha256, iso(clean.rangeStart), iso(clean.rangeEnd), clean.intervalMin, clean.services.length,
       summary.rowsTotal, summary.rowsStored, summary.rowsMerged, summary.rowsFixed, summary.rowsRejected, clean.expectedChecks,
-      JSON.stringify(clean.issues)],
+      JSON.stringify(clean.issues), pgTextArray(clean.agents), pgTextArray(clean.regions), clean.intervalHits, clean.totalGaps],
   );
   const upload = r.rows[0];
   if (!upload) return undefined;
@@ -108,10 +113,12 @@ export async function insertUpload(
   await insertRows(db, 'services', ['upload_id', 'service_id', 'service_name'],
     clean.services.map(s => [id, s.id, s.name]));
   await insertRows(db, 'service_stats',
-    ['upload_id', 'service_id', 'valid', 'failed', 'present', 'availability', 'downtime_min', 'p50_ms', 'p95_ms', 'incidents', 'longest_incident_min'],
+    ['upload_id', 'service_id', 'valid', 'failed', 'present', 'availability', 'downtime_min', 'p50_ms', 'p95_ms', 'incidents',
+      'longest_incident_min', 'expected', 'met', 'allowed_downtime_min', 'times_allowance', 'coverage'],
     input.stats.map(s => {
       const inc = perService.get(s.serviceId);
-      return [id, s.serviceId, s.valid, s.failed, s.present, s.availability, Math.round(s.downtimeMin), toInt(s.p50Ms), toInt(s.p95Ms), inc?.count ?? 0, inc?.longestMin ?? null];
+      return [id, s.serviceId, s.valid, s.failed, s.present, s.availability, Math.round(s.downtimeMin), toInt(s.p50Ms), toInt(s.p95Ms),
+        inc?.count ?? 0, inc?.longestMin ?? null, s.expected, s.met, s.allowedDowntimeMin, s.timesAllowance, s.coverage];
     }));
   await insertRows(db, 'hourly_failures', ['upload_id', 'service_id', 'hour_ts', 'checks', 'failed'],
     input.hourly.map(h => [id, h.serviceId, iso(h.hour), h.checks, h.failed]));
