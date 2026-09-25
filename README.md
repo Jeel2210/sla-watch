@@ -3,13 +3,13 @@
 Upload a CSV of health-check logs → a serverless function cleans it → the result is stored in Postgres →
 a single-screen dashboard shows per-service SLA stats (collapsible) and every check (filterable by date).
 
-| | |
+| | Status |
 |---|---|
-| **Live app** | _Phase 3: React frontend (to deploy to Vercel)_ |
-| **API** | _Phase 2 complete_: AWS Lambda function with Neon Postgres (ready to deploy via `sam deploy`) |
-| **Core logic** | _Phase 1 complete_: 91 tests passing, all 5 samples + stress files verified |
-| **Last verified live** | _not deployed yet — Phase 3 (web) pending_ |
-| **Design mockup** | https://claude.ai/artifact/Eusqy1vCS2BjZQnZqZWHC2 |
+| **Core logic** | ✅ Phase 1 complete: 91 tests, 5 samples + stress verified |
+| **API (Lambda + Neon)** | ✅ Phase 2 complete: handler, upload, health endpoints; ready for `sam deploy` |
+| **Web (React)** | 🔨 Phase 3 in progress: upload UI working; logs/dashboard views pending |
+| **Live URLs** | _not deployed yet_: awaiting Phase 3 completion and AWS/Vercel setup |
+| **Design reference** | https://claude.ai/artifact/Eusqy1vCS2BjZQnZqZWHC2 |
 
 ---
 
