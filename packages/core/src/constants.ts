@@ -25,3 +25,5 @@ export const MAX_GZIP_BYTES = 4_400_000;
 /** Field caps (SECURITY.md → Input validation): longer values reject the row, never truncated. */
 export const MAX_ID_CHARS = 200;      // service_id, service_name
 export const MAX_LABEL_CHARS = 100;   // agent, region
+/** Logs filter value for "reported by 2 or more agents" (the `agent` query parameter). */
+export const AGENT_MULTI = '*';
