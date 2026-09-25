@@ -1,0 +1,11 @@
+{
+  "name": "sla-watch",
+  "private": true,
+  "workspaces": ["packages/*", "services/*", "apps/*"],
+  "scripts": {
+    "test": "npm run test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "prepare": "git config core.hooksPath .githooks"
+  },
+  "engines": { "node": ">=20" }
+}
