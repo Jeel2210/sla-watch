@@ -5,9 +5,10 @@ a single-screen dashboard shows per-service SLA stats (collapsible) and every ch
 
 | | |
 |---|---|
-| **Live app** | _to be added after deployment_ |
-| **API** | _to be added after deployment_ (`GET /health`) |
-| **Last verified live** | _not deployed yet_ |
+| **Live app** | _Phase 3: React frontend (to deploy to Vercel)_ |
+| **API** | _Phase 2 complete_: AWS Lambda function with Neon Postgres (ready to deploy via `sam deploy`) |
+| **Core logic** | _Phase 1 complete_: 91 tests passing, all 5 samples + stress files verified |
+| **Last verified live** | _not deployed yet — Phase 3 (web) pending_ |
 | **Design mockup** | https://claude.ai/artifact/Eusqy1vCS2BjZQnZqZWHC2 |
 
 ---
