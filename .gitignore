@@ -1,0 +1,28 @@
+# dependencies & build output
+node_modules/
+dist/
+build/
+.vite/
+.aws-sam/
+.vercel/
+coverage/
+
+# secrets (names live in .env.example)
+.env
+.env.*
+!.env.example
+services/api/env.json
+
+# generated stress data — recreate with /generate-stress
+data/stress/*
+!data/stress/.gitkeep
+
+# personal Claude Code settings
+.claude/settings.json
+.claude/settings.local.json
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+*.log
