@@ -45,7 +45,8 @@ describe.skipIf(!hasStress(CHAOS))('stress chaos — 30 services, messy fields',
 
 describe.skipIf(!hasStress(LARGE))('stress large — 50 services × 90 days', () => {
   it('cleans ~464k rows without crashing, in reasonable time', () => {
-    const t = performance.now();
+    // CPU time, not wall time: the monorepo's tests run in parallel, and waiting for a busy CPU is not slowness.
+    const cpu = process.cpuUsage();
     const r = ok(LARGE);
     const stats = serviceStats(r);
     const inc = detectIncidents(r);
@@ -57,6 +58,7 @@ describe.skipIf(!hasStress(LARGE))('stress large — 50 services × 90 days', ()
     expect(inc.length).toBeGreaterThan(0);
     expect(hours.length).toBeLessThanOrEqual(50 * 90 * 24);
     expect([...batches(r.checks)].length).toBe(Math.ceil(430738 / 5_000)); // 87 writes of ≤ 5,000 rows
-    expect(performance.now() - t).toBeLessThan(30_000);
+    const used = process.cpuUsage(cpu);
+    expect((used.user + used.system) / 1000).toBeLessThan(30_000);
   }, 60_000);
 });

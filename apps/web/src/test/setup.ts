@@ -1,8 +1,12 @@
 import '@testing-library/jest-dom/vitest';
-import { cleanup } from '@testing-library/react';
+import { cleanup, configure } from '@testing-library/react';
 import { afterEach } from 'vitest';
 
 afterEach(() => cleanup());
+
+// The whole monorepo's tests run in parallel (turbo), next to core's 460k-row stress test: give async UI
+// waits room on a busy machine instead of failing on a slow tick.
+configure({ asyncUtilTimeout: 5000 });
 
 // jsdom does not implement scrolling; navigation scrolls to the top.
 window.scrollTo = () => {};
