@@ -1,6 +1,12 @@
-import { Panel } from '../../components/ui';
+import { AllUploads } from './AllUploads';
+import { UploadPanel } from './UploadPanel';
+import './uploads.css';
 
-/** Phase 1 frame: the upload panel and All uploads table arrive in phase 2. */
-export function UploadsPage(_: { currentId: string | undefined }) {
-  return <Panel title="Upload a CSV"><p className="placeholder">The upload panel arrives in the next phase.</p></Panel>;
+export function UploadsPage({ currentId }: { currentId: string | undefined }) {
+  return (
+    <>
+      <UploadPanel />
+      <AllUploads currentId={currentId} />
+    </>
+  );
 }

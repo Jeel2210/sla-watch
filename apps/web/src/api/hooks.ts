@@ -96,7 +96,7 @@ export function useChecks(id: string | undefined, q: ChecksQuery, cursor: string
 export type UploadPhase = 'compress' | 'send';
 
 /** Validates, gzips and uploads a CSV; refreshes every upload list when it is stored. */
-export function useUploadFile(onPhase?: (p: UploadPhase) => void) {
+export function useUploadFile(onPhase?: (p: UploadPhase, gzipBytes?: number) => void) {
   const qc = useQueryClient();
   return useMutation<UploadCreated, ApiError, File>({
     mutationFn: async file => {
@@ -104,7 +104,7 @@ export function useUploadFile(onPhase?: (p: UploadPhase) => void) {
       if (invalid) throw new ApiError(400, { error: invalid });
       onPhase?.('compress');
       const gz = await gzipFile(file);
-      onPhase?.('send');
+      onPhase?.('send', gz.size);
       return postUpload(file.name, gz);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['uploads'] }),
