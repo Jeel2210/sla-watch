@@ -1,5 +1,5 @@
 // Use the Lambda Function URL for all API calls
-const API_URL = import.meta.env.VITE_API_URL || 'https://nvxtvr5hy43lpsc5kvi22z2miu0htbmz.lambda-url.ap-south-1.on.aws';
+const API_URL = (import.meta.env.VITE_API_URL || 'https://nvxtvr5hy43lpsc5kvi22z2miu0htbmz.lambda-url.ap-south-1.on.aws').replace(/\/+$/, '');
 
 export async function uploadCsv(file: File): Promise<{
   id: string;
@@ -10,12 +10,12 @@ export async function uploadCsv(file: File): Promise<{
   rowsFixed: number;
   rowsRejected: number;
 }> {
-  // For now, upload without gzip (browser will auto-compress if HTTPS)
-  // TODO: add CompressionStream gzip when widely supported
+  const gzipped = await new Response(file.stream().pipeThrough(new CompressionStream('gzip'))).blob();
   const response = await fetch(`${API_URL}/uploads`, {
     method: 'POST',
-    body: file,
+    body: gzipped,
     headers: {
+      'Content-Type': 'application/gzip',
       'x-file-name': file.name,
     },
   });

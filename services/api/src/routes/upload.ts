@@ -1,5 +1,5 @@
 import { createHash } from 'crypto';
-import { inflateRawSync } from 'zlib';
+import { gunzipSync } from 'zlib';
 import { cleanCsv, serviceStats, detectIncidents, hourlyFailures } from '@sla/core';
 import { transaction } from '../db/client';
 import * as queries from '../db/queries';
@@ -8,11 +8,21 @@ import { HttpError, logRequest } from '../lib/errors';
 const MAX_BODY = 6_000_000; // 6 MB in bytes
 const MAX_DECOMPRESSED = 50_000_000; // 50 MB
 
+function longestIncidentMin(incidents: any[], serviceId: string): number | null {
+  let longest: number | null = null;
+  for (const i of incidents) {
+    if (i.serviceId !== serviceId) continue;
+    const minutes = Math.round((i.end - i.start) / 60_000);
+    if (longest === null || minutes > longest) longest = minutes;
+  }
+  return longest;
+}
+
 export async function handleUpload(
   event: any,
   context: any
 ): Promise<{ statusCode: number; body: string; headers: Record<string, string> }> {
-  const requestId = context.requestId || crypto.randomUUID();
+  const requestId = context.awsRequestId || crypto.randomUUID();
   const startMs = Date.now();
   let uploadId: string | undefined;
 
@@ -26,23 +36,22 @@ export async function handleUpload(
     const buffer = Buffer.from(body, isBase64 ? 'base64' : 'utf8');
     if (buffer.length > MAX_BODY) throw new HttpError(413, 'Request too large (6 MB limit)');
 
-    // Decompress with size guard
-    let csvText: string;
+    let decompressed: Buffer;
     try {
-      const decompressed = inflateRawSync(buffer, { maxOutputLength: MAX_DECOMPRESSED });
-      csvText = decompressed.toString('utf8');
-    } catch (e) {
-      if (e instanceof HttpError) throw e;
+      decompressed = gunzipSync(buffer, { maxOutputLength: MAX_DECOMPRESSED });
+    } catch (e: any) {
+      if (e?.code === 'ERR_BUFFER_TOO_LARGE') throw new HttpError(413, 'File too large (50 MB decompressed limit)');
       throw new HttpError(400, 'Invalid gzip content');
     }
 
-    // Validate UTF-8
-    if (!Buffer.from(csvText, 'utf8').equals(Buffer.from(csvText))) {
+    let csvText: string;
+    try {
+      csvText = new TextDecoder('utf-8', { fatal: true }).decode(decompressed);
+    } catch {
       throw new HttpError(400, 'Invalid UTF-8 encoding');
     }
 
-    // SHA-256 of the original file
-    const sha256 = createHash('sha256').update(buffer).digest('hex');
+    const sha256 = createHash('sha256').update(decompressed).digest('hex');
 
     // Check for duplicate
     const result = await transaction(async (client) => {
@@ -146,11 +155,7 @@ export async function handleUpload(
         p50_ms: s.p50Ms,
         p95_ms: s.p95Ms,
         incidents: incidents.filter((i: any) => i.serviceId === s.serviceId).length,
-        longest_incident_min: Math.max(
-          ...incidents
-            .filter((i: any) => i.serviceId === s.serviceId)
-            .map((i: any) => Math.round((i.end - i.start) / 60_000))
-        ) || null,
+        longest_incident_min: longestIncidentMin(incidents, s.serviceId),
       }));
 
       await queries.insertServiceStats(client, upload.id, statsData);
