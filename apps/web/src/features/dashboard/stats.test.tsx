@@ -58,8 +58,10 @@ describe('Stats panel', () => {
     expect(screen.getByText('longest 6 h 15 min · auth-api')).toBeInTheDocument();
     expect(screen.getByText('97.15%', { selector: '.kc .v' })).toBeInTheDocument();
     expect(screen.getByText('from 15,577 rows · 0 rejected')).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: 'Allowed downtime: how this is calculated' }));
-    expect(screen.getByRole('tooltip')).toHaveTextContent('2,880 checks × 15 min × 0.1%');
+    await userEvent.click(screen.getByRole('button', { name: 'Allowed downtime: how it is calculated' }));
+    expect(screen.getByRole('tooltip')).toHaveTextContent('= 2,880 × 15 min × 0.1%');
+    await userEvent.click(screen.getByRole('button', { name: 'Checks stored: how it is calculated' }));
+    expect(screen.getByRole('tooltip')).toHaveTextContent('= 15,577 − 1,177 − 0');
   });
 
   it('collapses and expands; collapsed content is out of the tab order', async () => {

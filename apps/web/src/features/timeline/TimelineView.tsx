@@ -5,7 +5,7 @@ import type { TimelinePage, TimelineRow, UploadSummary } from '@sla/core';
 import { useTimeline } from '../../api/hooks';
 import { HoverTip, useHoverTip } from '../../components/HoverTip';
 import { InfoPopover } from '../../components/InfoPopover';
-import { ErrorBox, Pill, Skeleton } from '../../components/ui';
+import { ErrorBox, Skeleton, Status } from '../../components/ui';
 import { TL_PAGE } from '../../lib/constants';
 import { allowanceText, fmtDay, fmtMin, fmtPct, fmtTime, fmtWhen, nf } from '../../lib/format';
 import type { OpenLogs } from '../dashboard/logsWindow';
@@ -68,8 +68,8 @@ function Row({ t, r, days, rangeEndMs, onOpenLogs }: { t: TimelinePage; r: Timel
         </svg>
       </div>
       <div className="avail num">{fmtPct(r.availability)}</div>
-      <div className="sla"><Pill met={r.met} /></div>
-      <div className="down num"><b>{fmtMin(r.downtimeMin)}</b><span className={r.met === false ? 'over' : ''}>{allowanceText(r.met, r.timesAllowance)}</span></div>
+      <div className="sla"><Status met={r.met} /></div>
+      <div className="down num"><b>{fmtMin(r.downtimeMin)}</b><span>{allowanceText(r.met, r.timesAllowance)}</span></div>
       <HoverTip tip={tip} />
     </div>
   );
@@ -93,9 +93,11 @@ export function TimelineView({ upload, onOpenLogs }: { upload: UploadSummary; on
         <span className="tl-h">Timeline
           <span className="legend"><span><i className="lg-tick light" />1 failed</span><span><i className="lg-tick" />3+ failed</span><span><i className="lg-band" />incident</span></span>
         </span>
-        <span className="r">Availability <InfoPopover label="How availability is calculated"><b>Availability</b><br />(Valid checks − failed checks) ÷ valid checks, per service, over the whole upload. A failed check is status 500–599.</InfoPopover></span>
-        <span>SLA <InfoPopover label="What Met and Missed mean"><b>SLA</b><br /><b>Met</b>: availability is 99.9% or higher.<br /><b>Missed</b>: below 99.9%, so the customer is eligible for a billing credit.</InfoPopover></span>
-        <span className="r">Downtime <InfoPopover label="How downtime is calculated"><b>Downtime</b><br />Failed checks × {upload.intervalMin} min, the interval detected in this file, compared with what 99.9% allows.</InfoPopover></span>
+        <span className="r">Availability <InfoPopover label="How availability is calculated" title="Availability"><span>Per service, over the whole upload. A failed check is status 500–599; invalid codes are left out.</span><span className="calc">(valid − failed) ÷ valid</span></InfoPopover></span>
+        <span>SLA <InfoPopover label="What Met and Missed mean" title="SLA"><span>Missed means the customer is eligible for a billing credit.</span><span className="calc">{`met    if availability ≥ 99.9%
+missed if availability < 99.9%`}</span></InfoPopover></span>
+        <span className="r">Downtime <InfoPopover label="How downtime is calculated" title="Downtime"><span>The interval detected in this file, compared with what 99.9% allows.</span><span className="calc">{`failed × ${upload.intervalMin} min
+allowance = slots × ${upload.intervalMin} min × 0.1%`}</span></InfoPopover></span>
       </div>
       {res.isError && <ErrorBox error={res.error} onRetry={() => res.refetch()} />}
       <div className={res.isPlaceholderData ? 'stale' : ''}>

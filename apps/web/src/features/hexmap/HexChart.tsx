@@ -2,7 +2,8 @@
 // Enter opens that hour's checks, a live region reads the focused hexagon (a11y).
 import { useState } from 'react';
 import { HoverTip, useHoverTip } from '../../components/HoverTip';
-import { fmtDay } from '../../lib/format';
+import { InfoPopover } from '../../components/InfoPopover';
+import { fmtDay, nf } from '../../lib/format';
 import type { HexCell, HexGeometry } from './hexGeometry';
 
 const hh = (h: number) => `${String(h).padStart(2, '0')}:00`;
@@ -18,9 +19,28 @@ function describe(c: HexCell, serviceName: string): string {
   return `${serviceName}, ${label} UTC: ${what}${c.incident ? ', part of an incident' : ''}`;
 }
 
-export function HexChart({ g, serviceName, onOpen, className = '' }: {
-  g: HexGeometry; serviceName: string; onOpen: (c: HexCell) => void; className?: string;
+/** Width of an uppercase 11px title in the SVG (letter-spaced), to place its help icon right after it. */
+const titleWidth = (t: string) => t.length * 7.3;
+
+/** "5 Jan = 1 + 4 + 4 + 4 + 3 + 4 + 2 = 22": the busiest row and column on screen, as worked examples. */
+function sums(g: HexGeometry) {
+  let row = 0;
+  g.dayBars.forEach((b, i) => { if (b.n > (g.dayBars[row]?.n ?? 0)) row = i; });
+  let col = 0;
+  g.hourBars.forEach((b, i) => { if (b.n > (g.hourBars[col]?.n ?? 0)) col = i; });
+  const rowCells = g.cells.filter(c => c.row === row && c.failed > 0);
+  const colCells = g.cells.filter(c => c.col === col && c.failed > 0);
+  const day = g.cells.find(c => c.row === row)?.day;
+  return {
+    perDay: rowCells.length && day ? `${fmtDay(`${day}T00:00:00Z`)} = ${rowCells.map(c => c.failed).join(' + ')} = ${g.dayBars[row]?.n}` : 'no failed checks on these days',
+    perHour: colCells.length ? `${hh(col)} = ${colCells.map(c => `${c.failed} (${fmtDay(`${c.day}T00:00:00Z`)})`).join(' + ')} = ${g.hourBars[col]?.n}` : 'no failed checks on these days',
+  };
+}
+
+export function HexChart({ g, serviceName, intervalMin, onOpen, className = '' }: {
+  g: HexGeometry; serviceName: string; intervalMin: number; onOpen: (c: HexCell) => void; className?: string;
 }) {
+  const ex = sums(g);
   const { tip, show, hide } = useHoverTip();
   const [focus, setFocus] = useState(-1);
   const current = g.cells[focus];
@@ -57,7 +77,8 @@ export function HexChart({ g, serviceName, onOpen, className = '' }: {
               <b>{serviceName}</b><br />{cellWindow(c).label} UTC<br />
               {c.checks === 0 ? 'No data' : c.failed ? <><b>{c.failed} of {c.checks}</b> checks failed</> : 'All checks passed'}
               {c.incident && <><br />Part of an incident</>}
-              <br /><span className="dim">Click to open these checks</span>
+              {c.checks > 0 && <span className="calc">{`downtime = ${c.failed} × ${intervalMin} min = ${nf(c.failed * intervalMin)} min`}</span>}
+              <span className="dim">Click to open these checks</span>
             </>)} />
         ))}
         {g.rowLabels.map(l => <text key={l.y} className="hexaxis" x={0} y={l.y}>{l.text}</text>)}
@@ -77,6 +98,18 @@ export function HexChart({ g, serviceName, onOpen, className = '' }: {
         ))}
         <text className="mtitle" x={g.sideX} y={g.hourTitleY}>{g.hourTitle}</text>
       </svg>
+      <span className="hm-help" style={{ left: g.sideX + titleWidth(g.dayTitle) + 6, top: 0 }}>
+        <InfoPopover label="Per day: how it is calculated" title="Per day">
+          <span>Failed checks in one row: the 24 hours of a UTC day, added up. The busiest day shown:</span>
+          <span className="calc">{ex.perDay}</span>
+        </InfoPopover>
+      </span>
+      <span className="hm-help" style={{ left: g.sideX + titleWidth(g.hourTitle) + 6, top: g.hourTitleY - 12 }}>
+        <InfoPopover label="Per time of day: how it is calculated" title="Per time of day">
+          <span>Failed checks in one column: the same hour on every day shown, added up. The busiest hour:</span>
+          <span className="calc">{ex.perHour}</span>
+        </InfoPopover>
+      </span>
       <div className="sr-only" aria-live="polite">{current ? `${describe(current, serviceName)}. Press Enter to open these checks.` : ''}</div>
       <HoverTip tip={tip} />
     </div>
@@ -84,13 +117,20 @@ export function HexChart({ g, serviceName, onOpen, className = '' }: {
 }
 
 /** Legend: 0 / 1 / 2 / 3+ failed checks per hexagon, and the incident outline. */
-export function HexLegend() {
+export function HexLegend({ intervalMin, failed, valid }: { intervalMin: number; failed: number; valid: number }) {
   const swatch = (cls: string) => (
     <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path className={cls} d="M11.8 6L8.9 11.02H3.1L.2 6 3.1.98h5.8z" /></svg>
   );
   return (
     <span className="hexlegend">
       <span>Failed per hour</span>
+      <InfoPopover label="Failed per hour: how the hex map is calculated" title="Failed per hour">
+        <span>Each hexagon is one hour of one service; rows are days, columns are hours (UTC).</span>
+        <span className="calc">{`checks per hour = 60 ÷ ${intervalMin} = ${Math.round(60 / intervalMin)}
+colour  = failed that hour: 0 · 1 · 2 · 3+
+outline = hour is part of an incident
+footer  = ${nf(failed)} of ${nf(valid)} failed, whole upload`}</span>
+      </InfoPopover>
       {swatch('hx h0')}0{swatch('hx h1 f')}1{swatch('hx h2 f')}2{swatch('hx h3 f')}3+
       {swatch('hx h0 inc')}incident
     </span>

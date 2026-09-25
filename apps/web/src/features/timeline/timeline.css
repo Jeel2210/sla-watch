@@ -11,18 +11,17 @@
 .tl svg { display: block; width: 100%; height: 100%; }
 .tl-track { fill: var(--track); }
 .tl-grid { fill: var(--line-strong); }
-.tl-band { fill: var(--band); stroke: var(--crit); stroke-width: 1.2; }
-.tl-tick { fill: var(--crit); }
+.tl-band { fill: var(--band); stroke: var(--incident); stroke-width: 1.2; }
+.tl-tick { fill: var(--heat3); }
 .avail { text-align: right; font-size: 17px; font-weight: 600; letter-spacing: -.01em; }
 .down { text-align: right; line-height: 1.3; }
 .down b { font-weight: 600; display: block; }
-.down span { font-size: 12px; color: var(--ink-2); }
-.down .over { color: var(--crit-ink); font-weight: 500; }
+.down span { font-size: 12px; color: var(--muted); }
 .legend { display: inline-flex; gap: 12px; flex-wrap: wrap; margin-left: 10px; text-transform: none; letter-spacing: 0; font-weight: 400; font-size: 12px; color: var(--ink-2); }
 .legend i { display: inline-block; vertical-align: -1px; margin-right: 6px; }
-.lg-tick { width: 3px; height: 12px; background: var(--crit); border-radius: 1px; }
+.lg-tick { width: 3px; height: 12px; background: var(--heat3); border-radius: 1px; }
 .lg-tick.light { opacity: .5; }
-.lg-band { width: 18px; height: 12px; background: var(--band); border-radius: 2px; box-shadow: inset 0 0 0 1px var(--crit); }
+.lg-band { width: 18px; height: 12px; background: var(--band); border-radius: 2px; box-shadow: inset 0 0 0 1px var(--incident); }
 .axis-row { padding: 2px 0 12px; }
 .axis { position: relative; height: 18px; font-size: 11px; color: var(--muted); font-family: var(--mono); }
 .axis span { position: absolute; top: 0; transform: translateX(-50%); white-space: nowrap; }

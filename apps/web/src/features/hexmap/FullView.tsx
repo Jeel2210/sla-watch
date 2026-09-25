@@ -11,7 +11,7 @@ import { HexChart, cellWindow } from './HexChart';
 import { fitRadius, hexGeometry } from './hexGeometry';
 import { ServiceKpis } from './ServiceHeader';
 
-function Chart({ uploadId, s, onOpenLogs }: { uploadId: string; s: ServiceRow; onOpenLogs: OpenLogs }) {
+function Chart({ uploadId, s, intervalMin, onOpenLogs }: { uploadId: string; s: ServiceRow; intervalMin: number; onOpenLogs: OpenLogs }) {
   const [setBody, size] = useElementSize<HTMLDivElement>();
   const days = useHexAll(uploadId, s.id, true);
   const width = Math.max(360, size.width - 8);
@@ -19,7 +19,7 @@ function Chart({ uploadId, s, onOpenLogs }: { uploadId: string; s: ServiceRow; o
   return (
     <div className="hf-body" ref={setBody}>
       {days.isError ? <ErrorBox error={days.error} onRetry={() => days.refetch()} />
-        : g ? <HexChart g={g} serviceName={s.name}
+        : g ? <HexChart g={g} serviceName={s.name} intervalMin={intervalMin}
           onOpen={c => onOpenLogs({ service: s.id, serviceName: s.name, ...cellWindow(c), label: `${s.name} · ${cellWindow(c).label}` })} />
           : <div className="hm-skel wide"><Skeleton /><Skeleton width="90%" /><Skeleton width="95%" /></div>}
     </div>
@@ -55,7 +55,7 @@ export function FullView({ uploadId, intervalMin, initial, onClose, onOpenLogs }
               <ServiceKpis s={s} intervalMin={intervalMin} />
             </div>
           </div>
-          <Chart key={s.id} uploadId={uploadId} s={s} onOpenLogs={w => { close(); onOpenLogs(w); }} />
+          <Chart key={s.id} uploadId={uploadId} s={s} intervalMin={intervalMin} onOpenLogs={w => { close(); onOpenLogs(w); }} />
         </>
       )}
     </Dialog>

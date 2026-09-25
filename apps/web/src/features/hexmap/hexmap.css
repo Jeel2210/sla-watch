@@ -22,8 +22,7 @@
 .hitem[aria-pressed="true"] { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
 .hitem .n { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hitem .a { font-weight: 600; font-size: 15px; text-align: right; }
-.hitem .s { grid-column: 1 / 3; display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 12px; color: var(--ink-2); }
-.hitem .s .over { color: var(--crit-ink); font-weight: 500; }
+.hitem .s { grid-column: 1 / 3; display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
 .hitem .pill { font-size: 11px; padding: 1px 8px 1px 6px; }
 .hitem.hskel { cursor: default; pointer-events: none; gap: 8px 10px; }
 .hitem.hskel .sk-row { grid-column: 1 / 3; }
@@ -43,6 +42,7 @@
 .hm-stats { display: flex; align-items: stretch; }
 .hm-stats .ks { display: flex; flex-direction: column; gap: 3px; padding: 0 16px; border-left: 1px solid var(--line); white-space: nowrap; }
 .hm-stats .ks:first-child { border-left: 0; padding-left: 0; }
+.hm-stats .kl-row { display: flex; align-items: center; gap: 6px; }
 .hm-stats .kl { font-size: 11px; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
 .hm-stats .kv { display: flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 600; line-height: 1.2; }
 .hm-stats .kv small { font-size: 12px; font-weight: 500; color: var(--ink-2); margin-left: 2px; }
@@ -57,12 +57,14 @@
 .hexsvg:focus { outline: none; }
 .hexsvg:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 6px; }
 .hx { cursor: pointer; transition: fill .2s var(--ease), transform .15s var(--ease); transform-box: fill-box; transform-origin: center; }
-.hx.h0 { fill: var(--track); } .hx.h1 { fill: var(--heat1); } .hx.h2 { fill: var(--heat2); } .hx.h3 { fill: var(--crit); }
+.hx.h0 { fill: var(--track); } .hx.h1 { fill: var(--heat1); } .hx.h2 { fill: var(--heat2); } .hx.h3 { fill: var(--heat3); }
 .hx.nodata { fill: var(--surface); stroke: var(--line); stroke-dasharray: 2 2; }
-.hx.f { stroke: var(--crit); stroke-width: 1; }
-.hx.inc { stroke: var(--crit-ink); stroke-width: 1.8; }
+/* strokes stay one width on every edge (SVG), and never scale with the hover zoom */
+.hx { vector-effect: non-scaling-stroke; }
+.hx.f { stroke: var(--heat-line); stroke-width: 1; }
+.hx.inc { stroke: var(--incident); stroke-width: 2; }
 .hx:hover { transform: scale(1.1); stroke: var(--ink); }
-.hx.kf { stroke: var(--ink); stroke-width: 2.4; }
+.hx.kf { stroke: var(--ink-2); stroke-width: 1.8; }
 .hexaxis { font-family: var(--mono); font-size: 11.5px; fill: var(--muted); }
 .mbar { fill: var(--heat2); transition: width .3s var(--ease), height .3s var(--ease); } .mbar.zero { fill: var(--track); }
 .mval { font-family: var(--mono); font-size: 10px; fill: var(--ink-2); }
@@ -97,3 +99,6 @@ dialog.hexfull[open] { display: flex; }
 .hm-av b { font-size: 22px; font-weight: 600; letter-spacing: -.02em; }
 .hf-body { flex: 1; min-height: 0; overflow: auto; padding: 16px 20px; display: flex; justify-content: center; align-items: flex-start; }
 .hm-skel.wide { width: 100%; }
+
+/* help icons placed over the SVG, right after the "Per day" / "Per time of day" titles */
+.hm-help { position: absolute; height: 14px; display: flex; align-items: center; }

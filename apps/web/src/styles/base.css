@@ -54,13 +54,14 @@ button, select, input { font: inherit; color: inherit; }
 /* tables */
 .tbl { overflow-x: auto; }
 table { border-collapse: collapse; width: 100%; font-size: 13px; }
-th, td { padding: 9px 20px; text-align: left; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th, td { padding: 9px 20px; text-align: left; border-bottom: 1px solid var(--line-soft); white-space: nowrap; }
 th { font-size: 11px; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); font-weight: 500; background: var(--surface-2); }
 tbody tr:last-child td { border-bottom: 0; }
 td.r, th.r { text-align: right; }
 td.m { font-family: var(--mono); font-size: 12.5px; }
-tr.fail td { background: color-mix(in srgb, var(--crit) 6%, transparent); }
-tr.fail td:first-child { box-shadow: inset 3px 0 0 var(--crit); }
+/* failed rows: a faint tint and thin edge; the red is on the status code itself */
+tr.fail td { background: color-mix(in srgb, var(--crit) 3%, transparent); }
+tr.fail td:first-child { box-shadow: inset 2px 0 0 var(--heat2); }
 
 /* pager */
 .pager {

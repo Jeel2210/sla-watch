@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { ServiceRow } from '@sla/core';
 import { useServices } from '../../api/hooks';
 import { Icon } from '../../components/Icon';
-import { ErrorBox, Pill, Skeleton } from '../../components/ui';
+import { ErrorBox, Skeleton, Status } from '../../components/ui';
 import { SEARCH_DEBOUNCE_MS, SVC_PAGE } from '../../lib/constants';
 import { allowanceText, fmtPct, nf } from '../../lib/format';
 import { useDebounced } from '../../lib/hooks';
@@ -67,7 +67,7 @@ export function ServiceList({ uploadId, selectedId, onSelect, fitHeight, stacked
         <button key={s.id} type="button" className="hitem" aria-pressed={s.id === selectedId} onClick={() => onSelect(s)}>
           <span className="n" title={s.name}>{s.name}</span>
           <span className="a num">{fmtPct(s.availability)}</span>
-          <span className="s"><Pill met={s.met} /><span className={`num${s.met === false ? ' over' : ''}`}>{allowanceText(s.met, s.timesAllowance)}</span></span>
+          <span className="s"><Status met={s.met} /><span className="num">{allowanceText(s.met, s.timesAllowance)}</span></span>
         </button>
       ))}
       {(res.isPending || res.isFetchingNextPage) && Array.from({ length: items?.length ? 2 : SVC_PAGE }, (_, i) => (

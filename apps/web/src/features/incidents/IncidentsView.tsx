@@ -12,7 +12,9 @@ export function IncidentsView({ uploadId, onOpenLogs }: { uploadId: string; onOp
   return (
     <div className="incview">
       <div className="psec-head">
-        <h3>Incidents <InfoPopover label="What counts as an incident"><b>Incidents</b><br />Sustained failures, for on-call. Failures at most 1 hour apart are grouped, and a group counts when at least 2 checks in a row failed. Single scattered failures are not incidents.<div className="calc">Incidents do not change the SLA numbers.</div></InfoPopover></h3>
+        <h3>Incidents <InfoPopover label="What counts as an incident" title="Incidents"><span>Sustained failures, for on-call. Single scattered failures are not incidents, and incidents do not change the SLA numbers.</span><span className="calc">{`failures ≤ 1 h apart → one group
+group counts if ≥ 2 in a row failed
+latency during = median ÷ normal`}</span></InfoPopover></h3>
         <span className="hint">Click a row to open its checks in the logs</span>
       </div>
       {res.isError && <div className="pad"><ErrorBox error={res.error} onRetry={() => res.refetch()} /></div>}

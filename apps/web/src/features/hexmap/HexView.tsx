@@ -56,7 +56,7 @@ function HexMain({ uploadId, s, intervalMin, onOpenLogs, onFullView }: {
       )} />
       <div ref={mapTop} />
       {hex.isError ? <ErrorBox error={hex.error} onRetry={() => hex.refetch()} /> : g && data ? (
-        <HexChart g={g} serviceName={s.name} className={hex.isPlaceholderData ? 'stale' : ''}
+        <HexChart g={g} serviceName={s.name} intervalMin={intervalMin} className={hex.isPlaceholderData ? 'stale' : ''}
           onOpen={c => onOpenLogs({ service: s.id, serviceName: s.name, ...cellWindow(c), label: `${s.name} · ${cellWindow(c).label}` })} />
       ) : <div className="hm-skel"><Skeleton width="100%" /><Skeleton width="92%" /><Skeleton width="96%" /></div>}
       <div className="hm-foot">
@@ -67,7 +67,7 @@ function HexMain({ uploadId, s, intervalMin, onOpenLogs, onFullView }: {
             <button type="button" className="btn small" aria-label="Later days" disabled={p >= pages - 1} onClick={() => go(p + 1)}>›</button>
           </div>
         ) : <span />}
-        <HexLegend />
+        <HexLegend intervalMin={intervalMin} failed={s.failed} valid={s.valid} />
         <span className="muted num">{nf(s.failed)} of {nf(s.valid)} checks failed</span>
       </div>
     </div>

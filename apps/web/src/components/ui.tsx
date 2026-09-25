@@ -29,8 +29,14 @@ export function Pill({ met, credit }: { met: boolean | null; credit?: boolean })
   );
 }
 
-export function Chip({ children, tone }: { children: ReactNode; tone?: 'bad' }) {
-  return <i className={`kchip${tone ? ` ${tone}` : ''}`}>{children}</i>;
+/** Quiet status for long lists (service list, timeline): dot + word, no filled pill, so red stays rare. */
+export function Status({ met }: { met: boolean | null }) {
+  const cls = met === null ? 'none' : met ? 'met' : 'missed';
+  return <span className={`status ${cls}`}><span className="dot" />{met === null ? 'No data' : met ? 'Met' : 'Missed'}</span>;
+}
+
+export function Chip({ children }: { children: ReactNode }) {
+  return <i className="kchip">{children}</i>;
 }
 
 export interface SegmentOption<T extends string> { value: T; label: ReactNode; count?: ReactNode; icon?: IconName; badge?: ReactNode }

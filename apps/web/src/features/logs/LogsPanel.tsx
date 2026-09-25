@@ -28,7 +28,7 @@ function Changes({ c, detail, intervalMin }: { c: CheckRow; detail: UploadDetail
   });
   return (
     <span className="chg">
-      <InfoPopover label="What cleaning changed"><b>What cleaning changed</b><ul>{texts.map(t => <li key={t}>{t}</li>)}</ul></InfoPopover>
+      <InfoPopover label="What cleaning changed" title="What cleaning changed"><ul>{texts.map(t => <li key={t}>{t}</li>)}</ul></InfoPopover>
       {texts.length} change{texts.length > 1 ? 's' : ''}
     </span>
   );

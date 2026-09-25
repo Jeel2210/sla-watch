@@ -37,18 +37,21 @@ Defined once as CSS variables (`tokens.css`); components use tokens only — nev
 
 | Token | Light | Dark | Use |
 |---|---|---|---|
-| `--surface` | `#ffffff` | `#11161f` | page, panels (all-white canvas) |
-| `--surface-2` | `#f7f8fa` | `#161c27` | table headers, filter bar, hover |
+| `--surface` | `#ffffff` | `#11161f` | page, panels, everything that shows data |
+| `--surface-side` | `#f9fafb` | `#0e131b` | app frame: sidebar and top bar |
+| `--surface-head` | `#fafbfc` | `#141a24` | panel headers and the stat strip |
+| `--surface-2` | `#f7f8fa` | `#161c27` | table headers, filter bar, hover, formula boxes |
 | `--track` | `#eceef2` | `#1b2230` | empty hexagons, timeline track, bar tracks |
 | `--ink` | `#0f1522` | `#eceff5` | primary text |
 | `--ink-2` | `#4b5566` | `#a9b1c0` | secondary text |
 | `--muted` | `#667085` | `#8e98a8` | labels, axes, hints (≥ 4.5:1) |
 | `--line` / `--line-strong` | `#e3e6eb` / `#cdd2da` | `#212938` / `#2e3848` | dividers, borders |
 | `--accent` / `-soft` / `-ink` | `#3654d6` / `#e8ecfc` / `#2a44b4` | `#7089ff` / `#1a2240` / `#9fb0ff` | selection, links, focus |
-| `--crit` / `-ink` / `-soft` | `#d03b3b` / `#b42f2f` / `#fbeaea` | `#e25555` / `#f08a8a` / `#2a1719` | failure, Missed, over allowance |
+| `--crit` / `-ink` / `-soft` | `#c2362b` / `#a52a20` / `#fdeceb` | `#e25555` / `#f08a8a` / `#2a1719` | **only** “missed / failed”: the missed-SLA number, the selected service’s pill, the Missed dot, failed status codes |
 | `--good` / `-ink` / `-soft` | `#0ca30c` / `#0a6e0a` / `#e7f6e7` | same / `#3fc43f` / `#12241a` | Met, success |
 | amber text | `#a15c00` | — | coverage < 100% |
-| `--heat1` / `--heat2` | `#f3b3b3` / `#e37777` | `#4d2428` / `#8f3a3c` | hex scale: 1 and 2 failures (3+ = `--crit`) |
+| `--heat1` / `--heat2` / `--heat3` | `#f6d4cf` / `#e99d93` / `#cf4a3e` | `#4d2428` / `#8f3a3c` / `#e25555` | failure scale: 1, 2, 3+ failures (hexagons, bars, timeline ticks) |
+| `--heat-line` / `--incident` | `#c96a60` / `#6d1d16` | `#c65a5a` / `#f5b3ab` | failed-hexagon outline (3.2:1) / incident outline (10:1) |
 
 Dark mode follows `prefers-color-scheme`, overridable with `data-theme="dark|light"` on `<html>`.
 
@@ -102,15 +105,16 @@ Dark mode follows `prefers-color-scheme`, overridable with `data-theme="dark|lig
 | **Panel** | white, 1px `--line`, radius 12px; header 54px (46px for Stats) with title left, controls right |
 | **Stat strip** | 5 equal cells split by lines: label (caps) · value (20px) · description (12px); ⓘ top-right opens explanation |
 | **Chart header** | left: `service · availability` over **97.15%** + pill; right: 4 KPIs (Downtime · Incidents · p50/p95 · Coverage) split by lines, label over value, extras as chips; icon-only ⤢ Full view |
-| **Pill** | `Met` (green soft) / `Missed` / `Missed · credit` (red soft), dot + text; never colour alone |
-| **Chip** | 11px, radius 99, grey (`max 2 h 15 min`) or red (`28×`) |
+| **Pill** | `Met` / `Missed · credit` (soft fill), dot + text; one per view: the selected service in the chart header |
+| **Status** | dot + word (`Missed`, `Met`), no fill; for long lists (service list, timeline) so red stays rare |
+| **Chip** | 11px, radius 99, always grey (`max 2 h 15 min`, `28×`): a qualifier, not an alarm |
 | **View toggle** | segmented `[⬡ Hex map | ┃┃ Timeline | ⚠ Incidents ②]` in the Stats header; red count badge |
 | **Tabs (logs)** | segmented with counts: All 14,400 · Failed 182 · Changed by cleaning 4,149 |
 | **Filters** | one button with count badge → dropdown panel: Date (single/range + All/Last day/Last 7 days), Service, Agent, Region, Sort, Reset/Done; active filters as removable chips under the header |
-| **Service list** | search (server-side, debounced) + rows (name, availability, pill, × allowance); **whole rows only**, snap scrolling, infinite scroll in pages of 5 with shimmer rows; footer "10 of 30 · scroll for more" |
+| **Service list** | search (server-side, debounced) + rows (name, availability, status, × allowance in grey); **whole rows only**, snap scrolling, infinite scroll in pages of 5 with shimmer rows; footer "10 of 30 · scroll for more" |
 | **Tables** | grey header row (11px caps), 13px rows, failed rows tinted red with a 3px red left bar, monospace times |
 | **Buttons** | 34px, radius 8; primary = ink background; ghost = white + border; icon buttons 32px with `aria-label` |
-| **Info pop-up** | dark bubble, formula in monospace using the upload's real numbers |
+| **Help icon + card** | the same thin circled “?” next to every value with a formula; hover peeks, click keeps it open, second click / × / Esc / click elsewhere closes; one open at a time. Light card: title, one sentence, formula in monospace on `--surface-2` with the upload's real numbers |
 
 ## Charts
 
@@ -118,7 +122,7 @@ Dark mode follows `prefers-color-scheme`, overridable with `data-theme="dark|lig
 - **One layout for every upload:** rows = days, columns = 24 hours (UTC); 1 hexagon = 1 hour (4 checks).
 - **Fit to box:** hexagon size from width (max ≈ 34px across); days **paged** to fit the measured height
   (`‹ 6 Apr – 13 Apr · days 1–8 of 30 ›`); phones: 7 days per page.
-- Colour scale: 0 = `--track`, 1 = `--heat1`, 2 = `--heat2`, 3+ = `--crit`; **every failed hexagon has a red
+- Colour scale: 0 = `--track`, 1 = `--heat1`, 2 = `--heat2`, 3+ = `--heat3`; **every failed hexagon has a `--heat-line`
   outline** (≥ 3:1); **incident hexagons a thicker dark outline**; legend in the chart footer.
 - Right: failures **per day** bars; bottom: failures **per time of day** bars (peak labelled).
 - Hover/focus → tooltip; click/Enter → opens that hour's checks in Logs. Keyboard: arrows, Home/End, Enter.

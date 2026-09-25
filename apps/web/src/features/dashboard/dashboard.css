@@ -5,8 +5,8 @@
 .stats.collapsed .pnl-head { border-bottom: 0; }
 .sh-right { display: flex; align-items: center; gap: 12px; }
 .sh-scope { font-size: 12.5px; }
-.ibadge { font-size: 11px; font-weight: 600; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 99px; background: var(--crit-soft); color: var(--crit-ink); display: inline-grid; place-items: center; }
-.itoggle button[aria-pressed="true"] .ibadge { background: var(--crit); color: var(--on-accent); }
+/* a count, not an alarm: neutral like every other badge */
+.ibadge { font-size: 11px; font-weight: 600; min-width: 16px; height: 16px; padding: 0 5px; border-radius: 99px; background: var(--track); color: var(--ink-2); display: inline-grid; place-items: center; }
 
 /* collapse: animate the row height; never leave content invisible (DESIGN.md → Motion) */
 .stats-body { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: 1fr; transition: grid-template-rows .32s var(--ease), opacity .25s var(--ease); }
@@ -14,8 +14,8 @@
 .stats.collapsed .stats-body { grid-template-rows: 0fr; opacity: 0; }
 
 /* stat strip: one row of cells split by lines */
-.kstrip { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); }
-.kc { padding: 10px 20px; border-right: 1px solid var(--line); display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.kstrip { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); background: var(--surface-head); }
+.kc { padding: 10px 20px; border-right: 1px solid var(--line-soft); display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .kc:last-child { border-right: 0; }
 .kc .top { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
 .kc .v { font-size: 20px; font-weight: 600; letter-spacing: -.02em; white-space: nowrap; line-height: 1.2; }
