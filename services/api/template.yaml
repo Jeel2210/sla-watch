@@ -39,7 +39,6 @@ Resources:
           AllowHeaders:
             - Content-Type
             - x-file-name
-        Qualifier: LIVE
 
 Outputs:
   ApiEndpoint:
