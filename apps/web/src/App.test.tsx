@@ -7,7 +7,14 @@ import { navigate } from './lib/router';
 import { page, uploadDetail, uploadSummary } from './test/fixtures';
 import { renderWithQuery } from './test/render';
 
-vi.mock('./api/client', async importOriginal => ({ ...(await importOriginal<typeof client>()), getUploads: vi.fn(), getUpload: vi.fn() }));
+// The shell is under test here; dashboard reads stay pending (no network), each screen has its own tests.
+const pending = vi.hoisted(() => () => new Promise<never>(() => {}));
+vi.mock('./api/client', async importOriginal => ({
+  ...(await importOriginal<typeof client>()),
+  getUploads: vi.fn(), getUpload: vi.fn(),
+  getStats: vi.fn(pending), getServices: vi.fn(pending), getHex: vi.fn(pending), getChecks: vi.fn(pending),
+  getTimeline: vi.fn(pending), getIncidents: vi.fn(pending),
+}));
 const getUploads = vi.mocked(client.getUploads);
 const getUpload = vi.mocked(client.getUpload);
 
@@ -19,7 +26,7 @@ const u9 = uploadSummary({
 
 beforeEach(() => {
   getUploads.mockReset();
-  getUpload.mockReset();
+  getUpload.mockReset().mockImplementation(async id => uploadDetail({ id }));
   navigate({ screen: 'dashboard' }, { replace: true });
 });
 

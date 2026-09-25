@@ -20,6 +20,7 @@ describe('hexFrame / paging', () => {
     const short = daysPerPage(1100, 500);
     expect(tall).toBeGreaterThan(short);
     expect(short).toBeGreaterThanOrEqual(4);
+    expect(daysPerPage(1100, 5000)).toBe(31);    // a very tall screen still asks for at most HEX_MAX_DAYS
   });
   it('full view radius fits every day into the height', () => {
     const r = fitRadius(1400, 700, 60);

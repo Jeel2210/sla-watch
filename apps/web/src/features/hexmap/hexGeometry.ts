@@ -1,6 +1,6 @@
 // Hex map layout (DESIGN.md → Hex map), ported from the approved mockup. Pure: data + width in, shapes out.
 // One layout for every upload: rows = UTC days, columns = the 24 hours; 1 hexagon = 1 hour.
-import type { HexDay } from '@sla/core';
+import { HEX_MAX_DAYS, type HexDay } from '@sla/core';
 import { fmtDay } from '../../lib/format';
 
 const COLS = 24;
@@ -20,12 +20,12 @@ export function hexFrame(width: number, maxR = MAX_R): HexFrame {
   return { r, narrow, left, sideW };
 }
 
-/** Days per page so the chart fits the height it has (phones: a week). */
+/** Days per page so the chart fits the height it has (phones: a week; never more than one request may ask for). */
 export function daysPerPage(width: number, height: number): number {
   const f = hexFrame(width);
   if (f.narrow) return 7;
   const rowH = Math.sqrt(3) * f.r;
-  return Math.max(4, Math.floor((height - TOP - BOTTOM) / rowH - 0.5));
+  return Math.min(HEX_MAX_DAYS, Math.max(4, Math.floor((height - TOP - BOTTOM) / rowH - 0.5)));
 }
 
 /** Largest radius that fits width × height (Full view: every day on one screen). */

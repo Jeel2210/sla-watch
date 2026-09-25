@@ -1,0 +1,43 @@
+/* Logs panel (DESIGN.md → Tabs, Filters, Tables). */
+.logs { overflow: visible; }
+.logs-head { position: relative; }
+.logs-head h2 .sub { font-weight: 400; font-size: 12.5px; }
+
+.code { font-family: var(--mono); font-size: 12.5px; font-weight: 500; display: inline-flex; align-items: center; gap: 6px; }
+.code .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--good); }
+.code.bad { color: var(--crit-ink); } .code.bad .dot { background: var(--crit); }
+.code.inv { color: var(--ink-2); } .code.inv .dot { background: var(--warn); }
+.chg { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-2); }
+
+/* filters dropdown */
+.fbtn[aria-expanded="true"] { border-color: var(--ink); background: var(--surface-2); }
+.fbadge { min-width: 18px; height: 18px; border-radius: 99px; background: var(--accent); color: var(--on-accent); font-size: 11px; font-weight: 600; display: inline-grid; place-items: center; padding: 0 5px; }
+.fpanel {
+  position: absolute; right: 20px; top: calc(100% + 6px); z-index: 35; width: min(460px, calc(100vw - 32px));
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow-pop);
+  display: flex; flex-direction: column; animation: popIn .16s var(--ease); transform-origin: top right;
+}
+.fp-sec { padding: 14px 16px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; }
+.flabel { display: block; font-size: 11px; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+.fp-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.fp-row input[type=date] { flex: 1; min-width: 130px; }
+.fp-note { margin: 0; font-size: 12px; color: var(--ink-2); }
+.dash { color: var(--muted); }
+.presets { display: flex; gap: 4px; }
+.presets button { border: 1px solid var(--line); background: var(--surface); border-radius: 99px; padding: 3px 10px; font-size: 12px; color: var(--ink-2); cursor: pointer; transition: border-color .18s var(--ease), color .18s var(--ease); }
+.presets button:hover { border-color: var(--line-strong); color: var(--ink); }
+.presets button[aria-pressed="true"] { border-color: var(--ink); color: var(--ink); font-weight: 500; }
+.fp-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+.fp-grid > div { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.fp-grid .select { width: 100%; }
+.fp-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 10px 16px; background: var(--surface-2); border-radius: 0 0 var(--radius) var(--radius); }
+
+/* active filter chips */
+.achips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 10px 20px; border-bottom: 1px solid var(--line); }
+.achips .label { margin-right: 4px; }
+.achip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line-strong); background: var(--surface); border-radius: 99px; padding: 2px 4px 2px 10px; font-size: 12.5px; animation: popIn .16s var(--ease); }
+.achip.win { border-color: var(--crit); background: var(--crit-soft); }
+.achip button { border: 0; background: var(--surface-2); border-radius: 99px; width: 20px; height: 20px; cursor: pointer; font-size: 10px; line-height: 1; }
+.achips .clear { border: 0; background: none; color: var(--accent-ink); font-size: 12.5px; font-weight: 500; cursor: pointer; margin-left: 4px; }
+
+@media (max-width: 560px) { .fp-grid { grid-template-columns: minmax(0, 1fr); } .fpanel { right: 12px; } }

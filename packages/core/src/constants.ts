@@ -27,3 +27,5 @@ export const MAX_ID_CHARS = 200;      // service_id, service_name
 export const MAX_LABEL_CHARS = 100;   // agent, region
 /** Logs filter value for "reported by 2 or more agents" (the `agent` query parameter). */
 export const AGENT_MULTI = '*';
+/** Most days one hex-map request may ask for (GET /uploads/:id/services/:sid/hex). */
+export const HEX_MAX_DAYS = 31;

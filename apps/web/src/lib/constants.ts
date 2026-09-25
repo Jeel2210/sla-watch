@@ -15,3 +15,5 @@ export const TL_PAGE = 10;
 export const SEARCH_DEBOUNCE_MS = 300;
 /** Uploads are immutable, so server data stays fresh for a long time (ARCHITECTURE.md → Frontend caching). */
 export const STALE_MS = 5 * 60_000;
+/** Page size when loading every service name for the logs' Service filter (the API's maximum). */
+export const SERVICE_OPTIONS_PAGE = 20;

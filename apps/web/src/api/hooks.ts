@@ -2,7 +2,7 @@
 // Every queryFn passes TanStack's AbortSignal, so a request is cancelled when its filters change.
 import { keepPreviousData, useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { UploadCreated } from '@sla/core';
-import { SVC_PAGE, TL_BINS, TL_PAGE } from '../lib/constants';
+import { SERVICE_OPTIONS_PAGE, SVC_PAGE, TL_BINS, TL_PAGE } from '../lib/constants';
 import {
   checkFile, getChecks, getHex, getIncidents, getServices, getStats, getTimeline, getUpload, getUploads, gzipFile, postUpload,
   ApiError, type ChecksQuery,
@@ -17,6 +17,7 @@ export const keys = {
   timeline: (id: string, offset: number) => ['timeline', id, offset] as const,
   incidents: (id: string) => ['incidents', id] as const,
   checks: (id: string, q: ChecksQuery, cursor: string | undefined, limit: number) => ['checks', id, q, cursor, limit] as const,
+  serviceOptions: (id: string) => ['service-options', id] as const,
 };
 
 /** One page of uploads, newest first. Keeps the previous page on screen while the next loads. */
@@ -89,6 +90,31 @@ export function useChecks(id: string | undefined, q: ChecksQuery, cursor: string
     queryFn: ({ signal }) => getChecks(id!, { ...q, cursor, limit }, signal),
     enabled: !!id,
     placeholderData: keepPreviousData,
+  });
+}
+
+/** Loads the page after this one ahead of time, so Next is instant (ARCHITECTURE.md → Frontend caching). */
+export function usePrefetchChecks() {
+  const qc = useQueryClient();
+  return (id: string, q: ChecksQuery, cursor: string, limit: number) =>
+    qc.prefetchQuery({ queryKey: keys.checks(id, q, cursor, limit), queryFn: ({ signal }) => getChecks(id, { ...q, cursor, limit }, signal) });
+}
+
+/** Every service's id and name, for the logs' Service filter. Fetched only when the filters open. */
+export function useServiceOptions(id: string | undefined, enabled: boolean) {
+  return useQuery({
+    queryKey: keys.serviceOptions(id ?? ''),
+    queryFn: async ({ signal }) => {
+      const all: { id: string; name: string }[] = [];
+      let cursor: string | undefined;
+      do {
+        const p = await getServices(id!, { cursor, limit: SERVICE_OPTIONS_PAGE }, signal);
+        all.push(...p.items.map(s => ({ id: s.id, name: s.name })));
+        cursor = p.nextCursor ?? undefined;
+      } while (cursor);
+      return all.sort((a, b) => a.name.localeCompare(b.name));
+    },
+    enabled: !!id && enabled,
   });
 }
 

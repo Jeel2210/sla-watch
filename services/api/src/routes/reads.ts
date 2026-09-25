@@ -1,6 +1,6 @@
 // GET /uploads/:id/… — the dashboard reads. Thin: validate input → read → shape the response (ARCHITECTURE.md rule 3).
 import {
-  SLA_TARGET,
+  HEX_MAX_DAYS, SLA_TARGET,
   type ChecksPage, type HexDay, type HexPage, type IncidentRow, type LogSort, type LogTab, type ServicesPage,
   type TimelinePage, type UploadDetail, type UploadStats,
 } from '@sla/core';
@@ -80,7 +80,7 @@ export async function getServices(req: Req): Promise<Reply> {
   return ok(body, u.id);
 }
 
-/** GET /uploads/:id/services/:sid/hex?from&days — hourly failures for a page of UTC days (days ≤ 31). */
+/** GET /uploads/:id/services/:sid/hex?from&days — hourly failures for a page of UTC days (days ≤ HEX_MAX_DAYS). */
 export async function getHex(req: Req): Promise<Reply> {
   const u = await requireUpload(req);
   const serviceId = textParam(req.params.sid, 'service') ?? '';
@@ -88,7 +88,7 @@ export async function getHex(req: Req): Promise<Reply> {
   const firstDay = Math.floor(u.range_start.getTime() / DAY) * DAY;
   const totalDays = Math.floor(u.range_end.getTime() / DAY) - firstDay / DAY + 1;
   const from = intParam(req.query.from, 'from', { fallback: 0, min: 0, max: totalDays - 1 });
-  const count = Math.min(intParam(req.query.days, 'days', { fallback: 7, min: 1, max: 31 }), totalDays - from);
+  const count = Math.min(intParam(req.query.days, 'days', { fallback: 7, min: 1, max: HEX_MAX_DAYS }), totalDays - from);
   const start = firstDay + from * DAY;
   const end = start + count * DAY;
   const [hourly, incidents] = await Promise.all([

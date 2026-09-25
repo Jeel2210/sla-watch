@@ -1,5 +1,5 @@
 // What the cleaner did, in the user's words. Shared by the upload result and the data report.
-import type { CleanIssues } from '@sla/core';
+import type { CleanIssues, QualityFlag } from '@sla/core';
 
 export interface Fix { label: string; detail: string; count: number }
 
@@ -27,4 +27,22 @@ export function conversions(i: CleanIssues): { timestamps: number; latencies: nu
   let latencies = 0;
   for (const n of Object.values(i.unitConverted)) latencies += n;
   return { timestamps: i.epoch + i.offset, latencies };
+}
+
+/** "What cleaning changed" for one stored check, one sentence per quality flag (logs table ⓘ). */
+export function flagTexts(
+  c: { flags: readonly QualityFlag[]; agents: readonly string[] },
+  ctx: { offsets: readonly string[]; units: readonly string[]; intervalMin: number },
+): string[] {
+  const text: Record<QualityFlag, string> = {
+    epoch_ts: 'Timestamp was Unix epoch. Converted to UTC.',
+    offset_ts: `Timestamp had a time-zone offset${ctx.offsets.length ? ` (${ctx.offsets.join(', ')})` : ''}. Converted to UTC.`,
+    unit_converted: `Latency was reported in ${ctx.units.length ? ctx.units.map(u => `"${u}"`).join(' or ') : 'another unit'}. Converted to ms.`,
+    merged: c.agents.length > 1 ? `Reported by ${c.agents.join(' and ')}. Merged into one check.` : `Reported more than once${c.agents[0] ? ` by ${c.agents[0]}` : ''}. Merged into one check.`,
+    latency_missing: 'Latency was blank. The status still counts.',
+    latency_negative: 'Latency was negative, so it was removed. The status still counts.',
+    invalid_status: 'Status code is not a valid HTTP code (100–599). Left out of availability.',
+    snapped: `Timestamp was off the ${ctx.intervalMin}-minute grid. Moved to the nearest check slot.`,
+  };
+  return c.flags.map(f => text[f]);
 }
