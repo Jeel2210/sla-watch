@@ -1,0 +1,50 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+Parameters:
+  DatabaseUrl:
+    Type: String
+    Description: Neon connection string
+  AllowedOrigin:
+    Type: String
+    Default: '*'
+    Description: CORS allowed origin
+
+Globals:
+  Function:
+    Timeout: 120
+    Memory: 512
+    Runtime: nodejs20.x
+    Environment:
+      Variables:
+        DATABASE_URL: !Ref DatabaseUrl
+        ALLOWED_ORIGIN: !Ref AllowedOrigin
+
+Resources:
+  ApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: sla-watch-api
+      CodeUri: ./
+      Handler: dist/handler.handler
+      ReservedConcurrentExecutions: 5
+      FunctionUrlConfig:
+        Cors:
+          AllowOrigins:
+            - !Ref AllowedOrigin
+          AllowMethods:
+            - GET
+            - POST
+            - OPTIONS
+          AllowHeaders:
+            - Content-Type
+            - x-file-name
+        Qualifier: LIVE
+
+Outputs:
+  ApiEndpoint:
+    Description: Lambda Function URL
+    Value: !GetAtt ApiFunctionUrl.FunctionUrl
+  ApiArn:
+    Description: Lambda Function ARN
+    Value: !GetAtt ApiFunction.Arn
