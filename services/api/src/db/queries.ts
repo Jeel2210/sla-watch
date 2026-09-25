@@ -1,10 +1,12 @@
 import type { CleanIssues, CleanOk, HourlyFailure, Incident, RejectedRow, RowSummary, ServiceStat, UploadSummary } from '@sla/core';
 import { incidentsByService } from '@sla/core';
 import type { Db } from './client';
-import { insertRows } from './insert';
+import { insertRows, pgTextArray } from './insert';
 
 /** Integer columns: latencies can be fractional after unit conversion (s, µs). */
 const toInt = (n: number | null) => (n === null ? null : Math.round(n));
+/** Timestamps are sent as ISO strings: unambiguous UTC for every driver (Date objects may serialise in local time). */
+const iso = (ms: number) => new Date(ms).toISOString();
 
 /** A row of `uploads` as pg returns it (timestamptz → Date). */
 export interface UploadRow {
@@ -89,7 +91,7 @@ export async function insertUpload(
      values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
      on conflict (file_sha256) do nothing
      returning *`,
-    [input.fileName, input.sha256, new Date(clean.rangeStart), new Date(clean.rangeEnd), clean.intervalMin, clean.services.length,
+    [input.fileName, input.sha256, iso(clean.rangeStart), iso(clean.rangeEnd), clean.intervalMin, clean.services.length,
       summary.rowsTotal, summary.rowsStored, summary.rowsMerged, summary.rowsFixed, summary.rowsRejected, clean.expectedChecks,
       JSON.stringify(clean.issues)],
   );
@@ -100,7 +102,7 @@ export async function insertUpload(
 
   await insertRows(db, 'checks',
     ['upload_id', 'service_id', 'slot_ts', 'status_code', 'is_valid', 'is_failed', 'latency_ms', 'agents', 'region', 'quality_flags'],
-    clean.checks.map(c => [id, c.serviceId, new Date(c.slot), c.status, c.isValid, c.isFailed, toInt(c.latencyMs), c.agents, c.region, c.flags]));
+    clean.checks.map(c => [id, c.serviceId, iso(c.slot), c.status, c.isValid, c.isFailed, toInt(c.latencyMs), pgTextArray(c.agents), c.region, pgTextArray(c.flags)]));
   await insertRows(db, 'rejected_rows', ['upload_id', 'line_no', 'raw', 'reason'],
     clean.rejected.map(x => [id, x.line, x.raw, x.reason]));
   await insertRows(db, 'services', ['upload_id', 'service_id', 'service_name'],
@@ -112,8 +114,8 @@ export async function insertUpload(
       return [id, s.serviceId, s.valid, s.failed, s.present, s.availability, Math.round(s.downtimeMin), toInt(s.p50Ms), toInt(s.p95Ms), inc?.count ?? 0, inc?.longestMin ?? null];
     }));
   await insertRows(db, 'hourly_failures', ['upload_id', 'service_id', 'hour_ts', 'checks', 'failed'],
-    input.hourly.map(h => [id, h.serviceId, new Date(h.hour), h.checks, h.failed]));
+    input.hourly.map(h => [id, h.serviceId, iso(h.hour), h.checks, h.failed]));
   await insertRows(db, 'incidents', ['upload_id', 'service_id', 'start_ts', 'end_ts', 'failed', 'median_latency_ms', 'normal_latency_ms'],
-    input.incidents.map(i => [id, i.serviceId, new Date(i.start), new Date(i.end), i.failedChecks, toInt(i.medianLatencyMs), toInt(i.normalLatencyMs)]));
+    input.incidents.map(i => [id, i.serviceId, iso(i.start), iso(i.end), i.failedChecks, toInt(i.medianLatencyMs), toInt(i.normalLatencyMs)]));
   return upload;
 }
