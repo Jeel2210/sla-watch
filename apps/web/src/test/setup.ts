@@ -1,6 +1,10 @@
-import '@testing-library/jest-dom/vitest';
+// DOM matchers (toBeInTheDocument, …) registered with this app's vitest; jest-dom's own vitest entry
+// imports `vitest` from the repo root, where it is not installed.
+import * as domMatchers from '@testing-library/jest-dom/matchers';
 import { cleanup, configure } from '@testing-library/react';
-import { afterEach } from 'vitest';
+import { afterEach, expect } from 'vitest';
+
+expect.extend(domMatchers);
 
 afterEach(() => cleanup());
 
