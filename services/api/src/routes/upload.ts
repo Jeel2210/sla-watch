@@ -1,248 +1,67 @@
-import { createHash } from 'crypto';
-import { gunzipSync } from 'zlib';
-import { cleanCsv, serviceStats, detectIncidents, hourlyFailures } from '@sla/core';
-import { transaction } from '../db/client';
-import * as queries from '../db/queries';
-import { HttpError, logRequest } from '../lib/errors';
+import { createHash } from 'node:crypto';
+import { gunzipSync } from 'node:zlib';
+import {
+  MAX_FILE_BYTES, MAX_GZIP_BYTES, cleanCsv, detectIncidents, hourlyFailures, rowSummary, serviceStats,
+  type CleanErrorCode, type UploadCreated,
+} from '@sla/core';
+import { db, transaction } from '../db/client';
+import { findUploadBySha256, insertUpload, rejectedSample, toUploadSummary, type UploadRow } from '../db/queries';
+import { HttpError, type ApiEvent, type Reply, type Req } from '../lib/http';
+import { fileNameParam } from '../lib/params';
 
-const MAX_BODY = 6_000_000; // 6 MB in bytes
-const MAX_DECOMPRESSED = 50_000_000; // 50 MB
+const REJECTED_SAMPLE = 10;
+const MB = (n: number) => `${Math.round(n / 1_000_000)} MB`;
 
-function longestIncidentMin(incidents: any[], serviceId: string): number | null {
-  let longest: number | null = null;
-  for (const i of incidents) {
-    if (i.serviceId !== serviceId) continue;
-    const minutes = Math.round((i.end - i.start) / 60_000);
-    if (longest === null || minutes > longest) longest = minutes;
+/** Status per cleaner error: wrong or unreadable content is 422, an empty file 400, too many rows 413. */
+const CLEAN_STATUS: Record<CleanErrorCode, number> = { EMPTY: 400, MISSING_COLUMNS: 422, NO_READABLE_ROWS: 422, TOO_MANY_ROWS: 413 };
+
+/** Request body → CSV text: size-capped gzip, decompressed with a hard cap (gzip-bomb guard), strict UTF-8. */
+function readCsvBody(event: ApiEvent): Buffer {
+  if (!event.body) throw new HttpError(400, 'The request has no file');
+  const gz = Buffer.from(event.body, event.isBase64Encoded ? 'base64' : 'utf8');
+  if (gz.length > MAX_GZIP_BYTES) throw new HttpError(413, `The compressed file is larger than ${MB(MAX_GZIP_BYTES)}`);
+  try {
+    return gunzipSync(gz, { maxOutputLength: MAX_FILE_BYTES });
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException).code === 'ERR_BUFFER_TOO_LARGE') throw new HttpError(413, `The file is larger than ${MB(MAX_FILE_BYTES)}`);
+    throw new HttpError(400, 'The body is not valid gzip');
   }
-  return longest;
 }
 
-export async function handleUpload(
-  event: any,
-  context: any
-): Promise<{ statusCode: number; body: string; headers: Record<string, string> }> {
-  const requestId = context.awsRequestId || crypto.randomUUID();
-  const startMs = Date.now();
-  let uploadId: string | undefined;
-
+function decodeUtf8(bytes: Buffer): string {
   try {
-    const fileName = (event.headers?.['x-file-name'] || 'unknown.csv') as string;
-    const body = event.body || '';
-    const isBase64 = event.isBase64Encoded;
-
-    if (!body) throw new HttpError(400, 'Empty request body');
-
-    const buffer = Buffer.from(body, isBase64 ? 'base64' : 'utf8');
-    if (buffer.length > MAX_BODY) throw new HttpError(413, 'Request too large (6 MB limit)');
-
-    let decompressed: Buffer;
-    try {
-      decompressed = gunzipSync(buffer, { maxOutputLength: MAX_DECOMPRESSED });
-    } catch (e: any) {
-      if (e?.code === 'ERR_BUFFER_TOO_LARGE') throw new HttpError(413, 'File too large (50 MB decompressed limit)');
-      throw new HttpError(400, 'Invalid gzip content');
-    }
-
-    let csvText: string;
-    try {
-      csvText = new TextDecoder('utf-8', { fatal: true }).decode(decompressed);
-    } catch {
-      throw new HttpError(400, 'Invalid UTF-8 encoding');
-    }
-
-    const sha256 = createHash('sha256').update(decompressed).digest('hex');
-
-    // Check for duplicate
-    const result = await transaction(async (client) => {
-      const existing = await queries.findUploadBySha256(client, sha256);
-      if (existing) {
-        return {
-          duplicate: true,
-          upload: existing,
-        };
-      }
-
-      // Clean CSV
-      const cleanResult = cleanCsv(csvText);
-      if (!cleanResult.ok) {
-        throw new HttpError(
-          cleanResult.code === 'EMPTY'
-            ? 400
-            : cleanResult.code === 'MISSING_COLUMNS'
-              ? 422
-              : cleanResult.code === 'TOO_MANY_ROWS'
-                ? 413
-                : 400,
-          `Cleaning failed: ${cleanResult.code}`,
-          requestId
-        );
-      }
-
-      // Compute stats
-      const stats = serviceStats(cleanResult);
-      const incidents = detectIncidents(cleanResult);
-      const hourly = hourlyFailures(cleanResult);
-
-      // Insert everything in one transaction
-      const upload = await queries.insertUpload(client, {
-        file_name: fileName,
-        file_sha256: sha256,
-        range_start: new Date(cleanResult.rangeStart).toISOString(),
-        range_end: new Date(cleanResult.rangeEnd).toISOString(),
-        interval_min: cleanResult.intervalMin,
-        services: cleanResult.services.length,
-        rows_total: cleanResult.issues.exactDuplicates + cleanResult.checks.length,
-        rows_stored: cleanResult.checks.length,
-        rows_merged: cleanResult.issues.mergedRows,
-        rows_fixed: cleanResult.issues.epoch +
-          cleanResult.issues.offset +
-          Object.values(cleanResult.issues.unitConverted).reduce((a: number, b: any) => a + (b || 0), 0) +
-          cleanResult.issues.trimmed +
-          cleanResult.issues.latencyMissing +
-          cleanResult.issues.latencyNegative +
-          cleanResult.issues.invalidStatus +
-          cleanResult.issues.snapped,
-        rows_rejected: cleanResult.rejected.length,
-        expected_checks: cleanResult.expectedChecks,
-        issues: cleanResult.issues,
-      });
-
-      uploadId = upload.id;
-
-      // Insert checks
-      const checks = cleanResult.checks.map((c: any) => ({
-        service_id: c.serviceId,
-        slot_ts: new Date(c.slot).toISOString(),
-        status_code: c.status,
-        is_valid: c.isValid,
-        is_failed: c.isFailed,
-        latency_ms: c.latencyMs,
-        agents: c.agents,
-        region: c.region || null,
-        quality_flags: c.flags,
-      }));
-
-      await queries.insertChecks(client, upload.id, checks);
-
-      // Insert rejected rows
-      const rejected = cleanResult.rejected.map((r: any) => ({
-        line_no: r.line,
-        raw: r.raw,
-        reason: r.reason,
-      }));
-
-      if (rejected.length > 0) {
-        await queries.insertRejectedRows(client, upload.id, rejected);
-      }
-
-      // Insert services
-      const services = cleanResult.services.map((s: any) => ({
-        service_id: s.id,
-        service_name: s.name,
-      }));
-
-      await queries.insertServices(client, upload.id, services);
-
-      // Insert service stats
-      const statsData = stats.map((s: any) => ({
-        service_id: s.serviceId,
-        valid: s.valid,
-        failed: s.failed,
-        present: s.present,
-        availability: s.availability,
-        downtime_min: s.downtime,
-        p50_ms: s.p50Ms,
-        p95_ms: s.p95Ms,
-        incidents: incidents.filter((i: any) => i.serviceId === s.serviceId).length,
-        longest_incident_min: longestIncidentMin(incidents, s.serviceId),
-      }));
-
-      await queries.insertServiceStats(client, upload.id, statsData);
-
-      // Insert hourly failures
-      const hourlyData = hourly.map((h: any) => ({
-        service_id: h.serviceId,
-        hour_ts: new Date(h.hour).toISOString(),
-        checks: h.checks,
-        failed: h.failed,
-      }));
-
-      await queries.insertHourlyFailures(client, upload.id, hourlyData);
-
-      // Insert incidents
-      const incidentsData = incidents.map((i: any) => ({
-        service_id: i.serviceId,
-        start_ts: new Date(i.start).toISOString(),
-        end_ts: new Date(i.end).toISOString(),
-        failed: i.failedChecks,
-        median_latency_ms: i.medianLatencyMs,
-        normal_latency_ms: i.normalLatencyMs,
-      }));
-
-      if (incidentsData.length > 0) {
-        await queries.insertIncidents(client, upload.id, incidentsData);
-      }
-
-      return {
-        duplicate: false,
-        upload,
-        stats,
-      };
-    });
-
-    const responseStatus = result.duplicate ? 200 : 201;
-    const duration = Date.now() - startMs;
-
-    logRequest({
-      route: 'POST /uploads',
-      uploadId: result.upload.id,
-      ms: duration,
-      rows: result.upload.rows_stored,
-      status: responseStatus,
-      requestId,
-    });
-
-    return {
-      statusCode: responseStatus,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': process.env.ALLOWED_ORIGIN || '*',
-      },
-      body: JSON.stringify({
-        id: result.upload.id,
-        fileName: result.upload.file_name,
-        duplicate: result.duplicate,
-        rowsStored: result.upload.rows_stored,
-        rowsMerged: result.upload.rows_merged,
-        rowsFixed: result.upload.rows_fixed,
-        rowsRejected: result.upload.rows_rejected,
-      }),
-    };
-  } catch (error: any) {
-    const duration = Date.now() - startMs;
-    const status = error instanceof HttpError ? error.status : 500;
-    const message = error instanceof HttpError ? error.message : 'Internal server error';
-
-    logRequest({
-      route: 'POST /uploads',
-      uploadId,
-      ms: duration,
-      status,
-      error: message,
-      requestId,
-    });
-
-    return {
-      statusCode: status,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': process.env.ALLOWED_ORIGIN || '*',
-      },
-      body: JSON.stringify({
-        error: message,
-        requestId,
-      }),
-    };
+    return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+  } catch {
+    throw new HttpError(400, 'The file is not UTF-8 text');
   }
+}
+
+async function created(u: UploadRow, duplicate: boolean): Promise<UploadCreated> {
+  return { ...toUploadSummary(u), duplicate, issues: u.issues, rejectedSample: await rejectedSample(db, u.id, REJECTED_SAMPLE) };
+}
+
+/** POST /uploads — 201 new upload, 200 same file uploaded before; nothing is stored on any error. */
+export async function postUpload(req: Req): Promise<Reply> {
+  const fileName = fileNameParam(req.header('x-file-name'));
+  const bytes = readCsvBody(req.event);
+  const text = decodeUtf8(bytes);
+  const sha256 = createHash('sha256').update(bytes).digest('hex');
+
+  const existing = await findUploadBySha256(db, sha256);
+  if (existing) return { status: 200, body: await created(existing, true), log: { uploadId: existing.id, rows: existing.rows_stored } };
+
+  // Clean before opening the transaction: CPU work must not hold a database connection.
+  const clean = cleanCsv(text);
+  if (!clean.ok) {
+    throw new HttpError(CLEAN_STATUS[clean.code], clean.message, { code: clean.code, missing: clean.missing, found: clean.found });
+  }
+  const input = {
+    fileName, sha256, clean, summary: rowSummary(clean),
+    stats: serviceStats(clean), incidents: detectIncidents(clean), hourly: hourlyFailures(clean),
+  };
+  const stored = await transaction(tx => insertUpload(tx, input));
+  // undefined: the same file was stored by a parallel request between our lookup and insert.
+  const upload = stored ?? (await findUploadBySha256(db, sha256));
+  if (!upload) throw new Error('Upload vanished after a sha256 conflict');
+  return { status: stored ? 201 : 200, body: await created(upload, !stored), log: { uploadId: upload.id, rows: upload.rows_stored } };
 }

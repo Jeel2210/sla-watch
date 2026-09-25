@@ -1,69 +1,23 @@
-import { handleUpload } from './routes/upload';
-import { handleHealth } from './routes/health';
-import { handleGetUploads } from './routes/getUploads';
+import { corsHeaders, json, runRoute, toReq, type ApiContext, type ApiEvent, type ApiResult, type Route } from './lib/http';
+import { getHealth } from './routes/health';
+import { getUploads } from './routes/getUploads';
+import { postUpload } from './routes/upload';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': process.env.ALLOWED_ORIGIN || '*',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, x-file-name',
+/** Every route the API serves. Anything else is 404 — including the dashboard reads not built yet. */
+const ROUTES: Record<string, Route> = {
+  'POST /uploads': postUpload,
+  'GET /uploads': getUploads,
+  'GET /health': getHealth,
 };
 
-export async function handler(event: any, context: any) {
-  const method = event.requestContext?.http?.method || event.httpMethod || 'GET';
-  const path = event.rawPath || event.path || '';
+export async function handler(event: ApiEvent, context: ApiContext = {}): Promise<ApiResult> {
+  const method = event.requestContext?.http?.method ?? 'GET';
+  const path = (event.rawPath ?? '/').replace(/\/+$/, '') || '/';
+  if (method === 'OPTIONS') return { statusCode: 204, headers: corsHeaders() };
 
-  // CORS preflight
-  if (method === 'OPTIONS') {
-    return {
-      statusCode: 200,
-      headers: corsHeaders,
-    };
-  }
-
-  try {
-    // POST /uploads
-    if (path === '/uploads' && method === 'POST') {
-      return await handleUpload(event, context);
-    }
-
-    // GET /uploads
-    if (path === '/uploads' && method === 'GET') {
-      return await handleGetUploads(event);
-    }
-
-    // GET /health
-    if (path === '/health' && method === 'GET') {
-      return await handleHealth();
-    }
-
-    // Placeholder for future routes (Phase 3)
-    if (path.startsWith('/uploads/')) {
-      return {
-        statusCode: 200,
-        headers: {
-          'Content-Type': 'application/json',
-          ...corsHeaders,
-        },
-        body: JSON.stringify({ ok: true, data: [] }),
-      };
-    }
-
-    return {
-      statusCode: 404,
-      headers: {
-        'Content-Type': 'application/json',
-        ...corsHeaders,
-      },
-      body: JSON.stringify({ error: 'Not found' }),
-    };
-  } catch (error: any) {
-    return {
-      statusCode: 500,
-      headers: {
-        'Content-Type': 'application/json',
-        ...corsHeaders,
-      },
-      body: JSON.stringify({ error: 'Internal server error' }),
-    };
-  }
+  const key = `${method} ${path}`;
+  const route = ROUTES[key];
+  const req = toReq(event, context);
+  if (!route) return json(404, { error: 'Not found', requestId: req.requestId });
+  return runRoute(key, route, req);
 }

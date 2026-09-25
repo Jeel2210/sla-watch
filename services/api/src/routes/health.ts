@@ -1,28 +1,12 @@
-import { query } from '../db/client';
+import { db } from '../db/client';
+import type { Reply } from '../lib/http';
 
-export async function handleHealth(): Promise<{
-  statusCode: number;
-  body: string;
-  headers: Record<string, string>;
-}> {
+/** GET /health — 200 when the database answers, 503 when it doesn't. */
+export async function getHealth(): Promise<Reply> {
   try {
-    await query('select 1');
-    return {
-      statusCode: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': process.env.ALLOWED_ORIGIN || '*',
-      },
-      body: JSON.stringify({ ok: true, db: true }),
-    };
+    await db.query('select 1');
+    return { status: 200, body: { ok: true, db: true } };
   } catch {
-    return {
-      statusCode: 503,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': process.env.ALLOWED_ORIGIN || '*',
-      },
-      body: JSON.stringify({ ok: false, db: false }),
-    };
+    return { status: 503, body: { ok: false, db: false } };
   }
 }
