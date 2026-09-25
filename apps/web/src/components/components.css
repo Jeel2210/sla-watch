@@ -68,3 +68,7 @@ dialog::backdrop { background: var(--backdrop); }
 .dlg-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 14px 18px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--surface); z-index: 1; }
 .dlg-title { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; min-width: 0; }
 .dlg-head h2 { font-size: 15px; }
+
+/* pointer tooltip for charts */
+.hovertip { position: fixed; z-index: 45; pointer-events: none; background: var(--tip-bg); color: var(--tip-ink); border-radius: var(--radius-sm); font-size: 12.5px; line-height: 1.5; box-shadow: var(--shadow-tip); padding: 7px 10px; max-width: 260px; animation: fadeIn .12s; }
+.hovertip .dim { opacity: .75; }

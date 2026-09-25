@@ -1,0 +1,28 @@
+/* Incidents view (DESIGN.md → Incidents view): scrolls inside its box, sticky header. */
+.incview { border-top: 1px solid var(--line); }
+.psec-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 12px 20px; }
+.psec-head h3 { font-size: 13px; display: flex; align-items: center; gap: 6px; }
+.psec-head .hint { font-size: 12.5px; color: var(--muted); }
+.inc-list { max-height: 420px; overflow-y: auto; }
+.irow {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr) minmax(0, .7fr) minmax(0, .75fr) minmax(0, 1.3fr);
+  gap: 12px; align-items: center; padding: 10px 20px; width: 100%; text-align: left; font-size: 13px;
+  border: 0; border-top: 1px solid var(--line); background: var(--surface); transition: background-color .18s var(--ease);
+}
+button.irow { cursor: pointer; }
+button.irow:hover { background: var(--surface-2); }
+.ihead { position: sticky; top: 0; z-index: 1; background: var(--surface-2); font-size: 11px; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); font-weight: 500; padding-block: 8px; }
+.irow .r { text-align: right; }
+.irow .sv { font-weight: 600; }
+.irow .w { font-family: var(--mono); font-size: 12.5px; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.irow .du { font-weight: 600; color: var(--crit-ink); }
+.irow .la b { color: var(--crit-ink); font-weight: 600; }
+.iempty { padding: 14px 20px; border-top: 1px solid var(--line); font-size: 13px; color: var(--ink-2); }
+.imore { padding: 10px 20px; border-top: 1px solid var(--line); }
+
+@media (max-width: 920px) {
+  .ihead { display: none; }
+  .irow { grid-template-columns: minmax(0, 1fr) auto; row-gap: 2px; }
+  .irow .w, .irow .la { grid-column: 1 / 3; text-align: left; }
+  .irow .fc { display: none; }
+}

@@ -43,3 +43,30 @@ export function useStored<T extends string>(key: string, allowed: readonly T[], 
   };
   return [value, set];
 }
+
+/** Size of an element, kept up to date as it resizes (charts fit their box: DESIGN.md layout law 3). */
+export function useElementSize<T extends HTMLElement>() {
+  const [el, setEl] = useState<T | null>(null);
+  const [size, setSize] = useState({ width: 0, height: 0 });
+  useEffect(() => {
+    if (!el) return;
+    const measure = () => setSize(s => (s.width === el.clientWidth && s.height === el.clientHeight ? s : { width: el.clientWidth, height: el.clientHeight }));
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [el]);
+  return [setEl, size, el] as const;
+}
+
+/** Window height, kept up to date. */
+export function useViewportHeight(): number {
+  const [h, setH] = useState(() => window.innerHeight);
+  useEffect(() => {
+    const on = () => setH(window.innerHeight);
+    window.addEventListener('resize', on);
+    return () => window.removeEventListener('resize', on);
+  }, []);
+  return h;
+}
