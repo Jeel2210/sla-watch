@@ -7,3 +7,4 @@ export * from './clean';
 export * from './sla';
 export * from './incidents';
 export * from './hourly';
+export * from './batch';
