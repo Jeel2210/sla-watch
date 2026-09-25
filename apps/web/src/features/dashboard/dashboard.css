@@ -33,3 +33,9 @@
   .kc:last-child:nth-child(odd) { grid-column: 1 / -1; border-right: 0; }
 }
 @media (max-width: 640px) { .sh-scope { display: none; } }
+
+/* first-load skeleton keeps the dashboard's shape */
+.dash-skel { display: flex; flex-direction: column; gap: 20px; }
+.dash-skel .pnl-head { gap: 16px; }
+.dash-skel .kc, .dash-skel .hm-name { gap: 8px; }
+.dash-skel .hsearch { position: static; }

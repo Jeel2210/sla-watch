@@ -76,3 +76,5 @@ dialog::backdrop { background: var(--backdrop); }
 /* loading bar */
 .topprog { position: fixed; top: 0; left: 0; height: 2px; width: 0; background: var(--accent); z-index: 60; opacity: 0; transition: width .45s var(--ease), opacity .3s; }
 .topprog.on { opacity: 1; width: 72%; }
+
+.sk.inline { display: inline-block; vertical-align: middle; height: 9px; }

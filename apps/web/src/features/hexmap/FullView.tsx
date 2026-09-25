@@ -42,6 +42,7 @@ export function FullView({ uploadId, intervalMin, initial, onClose, onOpenLogs }
         <>
           <div className="hf-bar">
             <div className="tabs hf-tabs" role="group" aria-label="Service">
+              {services.isPending && Array.from({ length: 4 }, (_, i) => <button key={i} type="button" disabled><Skeleton inline width={90} /></button>)}
               {tabs.map(t => (
                 <button key={t.id} type="button" aria-pressed={t.id === s.id} onClick={() => setPicked(t)}>
                   {t.name}<span className="c num">{fmtPct(t.availability)}</span>

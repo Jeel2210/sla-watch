@@ -17,3 +17,8 @@ export const SEARCH_DEBOUNCE_MS = 300;
 export const STALE_MS = 5 * 60_000;
 /** Page size when loading every service name for the logs' Service filter (the API's maximum). */
 export const SERVICE_OPTIONS_PAGE = 20;
+/**
+ * Upload lists, unlike an upload's own data, change: someone else (or another tab) can add an upload.
+ * They count as out of date after this long and refresh when the tab is focused again.
+ */
+export const UPLOADS_STALE_MS = 30_000;

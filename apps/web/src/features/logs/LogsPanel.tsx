@@ -61,9 +61,9 @@ export function LogsPanel({ upload, detail, filters, onFilters }: {
         <h2 id="logs-title">Logs <span className="muted sub">· times in UTC</span></h2>
         <div className="pnl-actions">
           <Segmented<LogTab> label="Show" value={filters.tab} onChange={tab => onFilters({ ...filters, tab })} options={[
-            { value: 'all', label: 'All', count: counts ? nf(counts.all) : '…' },
-            { value: 'failed', label: 'Failed', count: counts ? nf(counts.failed) : '…' },
-            { value: 'changed', label: 'Changed by cleaning', count: counts ? nf(counts.changed) : '…' },
+            { value: 'all', label: 'All', count: counts ? nf(counts.all) : <Skeleton inline width={34} /> },
+            { value: 'failed', label: 'Failed', count: counts ? nf(counts.failed) : <Skeleton inline width={22} /> },
+            { value: 'changed', label: 'Changed by cleaning', count: counts ? nf(counts.changed) : <Skeleton inline width={30} /> },
           ]} />
           <FiltersMenu upload={upload} detail={detail} filters={filters} onChange={onFilters} activeCount={activeFilters} />
         </div>
@@ -105,7 +105,7 @@ export function LogsPanel({ upload, detail, filters, onFilters }: {
       )}
       <div className="pager">
         <span className="num" aria-live="polite">
-          {pages !== undefined && total !== undefined ? `Page ${nf(pager.page + 1)} of ${nf(pages)} · ${nf(total)} checks` : 'Loading…'}
+          {pages !== undefined && total !== undefined ? `Page ${nf(pager.page + 1)} of ${nf(pages)} · ${nf(total)} checks` : <Skeleton inline width={170} />}
         </span>
         <div>
           <button type="button" className="btn" disabled={pager.page === 0} onClick={pager.prev}>Previous</button>

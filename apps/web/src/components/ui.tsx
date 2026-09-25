@@ -53,9 +53,9 @@ export function Segmented<T extends string>({ options, value, onChange, label, v
   );
 }
 
-/** Shimmer placeholder while data loads. */
-export function Skeleton({ width = '100%' }: { width?: number | string }) {
-  return <span className="sk" style={{ width }} aria-hidden="true" />;
+/** Shimmer placeholder while data loads; `inline` sits inside a line of text (counts, pager). */
+export function Skeleton({ width = '100%', inline, height }: { width?: number | string; inline?: boolean; height?: number }) {
+  return <span className={`sk${inline ? ' inline' : ''}`} style={{ width, height }} aria-hidden="true" />;
 }
 
 /** Plain sentence + next action (DESIGN.md → UX states). */

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <title>SLA Watch</title>
+  <rect width="32" height="32" rx="8" fill="#0f1522"/>
+  <path d="M4.9 17.9H10.4L14.1 8.6L17.9 23.4L21.6 16H27.1" fill="none" stroke="#ffffff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

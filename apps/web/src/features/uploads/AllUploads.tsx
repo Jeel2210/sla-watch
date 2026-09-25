@@ -54,7 +54,7 @@ export function AllUploads({ currentId }: { currentId: string | undefined }) {
         </div>
       )}
       <div className="pager">
-        <span className="num">{items ? (items.length ? `Page ${pager.page + 1}${q ? ' · matching' : ''}` : '') : 'Loading…'}</span>
+        <span className="num">{items ? (items.length ? `Page ${pager.page + 1}${q ? ' · matching' : ''}` : '') : <Skeleton inline width={60} />}</span>
         <div>
           <button type="button" className="btn" disabled={pager.page === 0} onClick={pager.prev}>Previous</button>
           <button type="button" className="btn" disabled={!res.data?.nextCursor || res.isPlaceholderData}

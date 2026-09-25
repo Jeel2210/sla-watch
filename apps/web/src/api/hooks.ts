@@ -2,7 +2,7 @@
 // Every queryFn passes TanStack's AbortSignal, so a request is cancelled when its filters change.
 import { keepPreviousData, useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { HEX_MAX_DAYS, type HexDay, type UploadCreated } from '@sla/core';
-import { SERVICE_OPTIONS_PAGE, SVC_PAGE, TL_BINS, TL_PAGE } from '../lib/constants';
+import { SERVICE_OPTIONS_PAGE, SVC_PAGE, TL_BINS, TL_PAGE, UPLOADS_STALE_MS } from '../lib/constants';
 import {
   checkFile, getChecks, getHex, getIncidents, getServices, getStats, getTimeline, getUpload, getUploads, gzipFile, postUpload,
   ApiError, type ChecksQuery,
@@ -21,12 +21,17 @@ export const keys = {
   hexAll: (id: string, serviceId: string) => ['hex-all', id, serviceId] as const,
 };
 
-/** One page of uploads, newest first. Keeps the previous page on screen while the next loads. */
+/**
+ * One page of uploads, newest first. Keeps the previous page on screen while the next loads. Refreshed after
+ * our own uploads (useUploadFile), and when the tab regains focus, so uploads made elsewhere show up too.
+ */
 export function useUploadsPage(q: { q?: string; cursor?: string; limit: number }) {
   return useQuery({
     queryKey: keys.uploads(q),
     queryFn: ({ signal }) => getUploads(q, signal),
     placeholderData: keepPreviousData,
+    staleTime: UPLOADS_STALE_MS,
+    refetchOnWindowFocus: true,
   });
 }
 

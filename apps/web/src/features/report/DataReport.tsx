@@ -88,13 +88,24 @@ function Body({ u }: { u: UploadDetail }) {
   );
 }
 
+/** The report's own sections in shimmer while it loads. */
+function ReportSkeleton() {
+  return (
+    <div className="dlg-body" aria-busy="true">
+      <section><Skeleton width={220} height={13} /><Skeleton height={14} /><div className="flow-legend">{Array.from({ length: 4 }, (_, i) => <Skeleton key={i} width="80%" />)}</div></section>
+      <section><Skeleton width={170} height={13} />{Array.from({ length: 5 }, (_, i) => <Skeleton key={i} width={`${90 - i * 8}%`} />)}</section>
+      <section><Skeleton width={120} height={13} />{Array.from({ length: 4 }, (_, i) => <Skeleton key={i} />)}</section>
+    </div>
+  );
+}
+
 export function DataReport({ uploadId, open, onClose }: { uploadId: string; open: boolean; onClose: () => void }) {
   const res = useUpload(open ? uploadId : undefined);
   return (
     <Dialog open={open} onClose={onClose} title="Data report for this upload">
       {res.data ? <Body u={res.data} />
         : res.isError ? <div className="dlg-body"><ErrorBox error={res.error} onRetry={() => res.refetch()} /></div>
-          : <div className="dlg-body"><Skeleton width="80%" /><Skeleton width="60%" /><Skeleton width="70%" /></div>}
+          : <ReportSkeleton />}
     </Dialog>
   );
 }

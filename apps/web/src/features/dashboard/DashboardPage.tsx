@@ -1,11 +1,11 @@
 import { useCallback, useState } from 'react';
 import type { ServiceRow, UploadSummary } from '@sla/core';
 import { useUpload } from '../../api/hooks';
-import { Panel, Skeleton } from '../../components/ui';
 import { FullView } from '../hexmap/FullView';
 import { defaultFilters, withWindow, type LogFilters } from '../logs/logsFilter';
 import { LogsPanel } from '../logs/LogsPanel';
 import type { LogsWindow } from './logsWindow';
+import { DashboardSkeleton } from './DashboardSkeleton';
 import { StatsPanel } from './StatsPanel';
 import './dashboard.css';
 
@@ -32,6 +32,6 @@ function Dashboard({ upload }: { upload: UploadSummary }) {
 
 /** One upload: Stats on top, Logs below (brief). App keys this by upload id, so state resets per upload. */
 export function DashboardPage({ upload }: { uploadId: string | undefined; upload: UploadSummary | undefined }) {
-  if (!upload) return <Panel title="Stats" compact><div className="pad"><Skeleton width="60%" /></div></Panel>;
+  if (!upload) return <DashboardSkeleton />;
   return <Dashboard upload={upload} />;
 }
