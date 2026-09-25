@@ -1,166 +1,71 @@
-#!/bin/bash
-# SLA Watch API Deployment Script
-# Deploy Lambda function + configure URL + set environment variables
-# Usage: ./deploy.sh -d "postgres://..." -o "https://your-domain.com"
+#!/usr/bin/env bash
+# Build the API with turbo + esbuild and push it to the existing Lambda function.
+# Usage: ./services/api/deploy.sh [-d DATABASE_URL] [-o ALLOWED_ORIGIN] [-f FUNCTION_NAME] [-r REGION]
+# -d / -o are optional: when omitted, the function's current values are kept.
+set -euo pipefail
 
-set -e
-
-# Default values
 FUNCTION_NAME="sla-watch-api"
-REGION="${AWS_REGION:-us-east-1}"
-RUNTIME="nodejs20.x"
+REGION="ap-south-1"
+NEW_DATABASE_URL="${DATABASE_URL:-}"
+NEW_ALLOWED_ORIGIN="${ALLOWED_ORIGIN:-}"
 
-# Parse arguments
 while getopts "d:o:f:r:h" opt; do
   case $opt in
-    d) DATABASE_URL="$OPTARG" ;;
-    o) ALLOWED_ORIGIN="$OPTARG" ;;
+    d) NEW_DATABASE_URL="$OPTARG" ;;
+    o) NEW_ALLOWED_ORIGIN="$OPTARG" ;;
     f) FUNCTION_NAME="$OPTARG" ;;
     r) REGION="$OPTARG" ;;
-    h) echo "Usage: $0 -d DATABASE_URL -o ALLOWED_ORIGIN [-f FUNCTION_NAME] [-r REGION]"; exit 0 ;;
-    *) echo "Invalid option: -$OPTARG"; exit 1 ;;
+    *) echo "Usage: $0 [-d DATABASE_URL] [-o ALLOWED_ORIGIN] [-f FUNCTION_NAME] [-r REGION]"; exit 1 ;;
   esac
 done
 
-# Use env vars if not provided
-DATABASE_URL="${DATABASE_URL:-$DATABASE_URL}"
-ALLOWED_ORIGIN="${ALLOWED_ORIGIN:-*}"
+API_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "$API_DIR/../.." && pwd)"
+ZIP_PATH="$API_DIR/dist/lambda.zip"
 
-echo "=== SLA Watch API Deployment ==="
+step() { printf '\n==> %s\n' "$1"; }
 
-# Validate inputs
-if [ -z "$DATABASE_URL" ]; then
-  echo "ERROR: DatabaseUrl is required (-d flag or DATABASE_URL env var)"
+command -v aws >/dev/null || { echo "AWS CLI not found. Install it and run 'aws configure'."; exit 1; }
+command -v zip >/dev/null || { echo "'zip' not found. Install it (e.g. apt install zip)."; exit 1; }
+
+step "Checking AWS credentials"
+aws sts get-caller-identity --query Arn --output text
+
+step "Building api (turbo -> esbuild single-file bundle)"
+(cd "$REPO_ROOT" && npx turbo run build --filter=api)
+
+step "Packaging dist/index.mjs"
+rm -f "$ZIP_PATH"
+zip -j "$ZIP_PATH" "$API_DIR/dist/index.mjs" >/dev/null
+
+step "Uploading code to $FUNCTION_NAME ($REGION)"
+aws lambda update-function-code --function-name "$FUNCTION_NAME" --region "$REGION" \
+  --zip-file "fileb://$ZIP_PATH" --query LastUpdateStatus --output text
+aws lambda wait function-updated-v2 --function-name "$FUNCTION_NAME" --region "$REGION"
+
+step "Updating configuration (handler, env)"
+ENV_FILE="$(mktemp)"
+trap 'rm -f "$ENV_FILE"' EXIT
+aws lambda get-function-configuration --function-name "$FUNCTION_NAME" --region "$REGION" --output json \
+  | NEW_DATABASE_URL="$NEW_DATABASE_URL" NEW_ALLOWED_ORIGIN="$NEW_ALLOWED_ORIGIN" node -e '
+      let s = ""; process.stdin.on("data", d => s += d).on("end", () => {
+        const vars = JSON.parse(s).Environment?.Variables ?? {};
+        if (process.env.NEW_DATABASE_URL) vars.DATABASE_URL = process.env.NEW_DATABASE_URL;
+        if (process.env.NEW_ALLOWED_ORIGIN) vars.ALLOWED_ORIGIN = process.env.NEW_ALLOWED_ORIGIN;
+        if (!vars.DATABASE_URL) { console.error("DATABASE_URL is not set on the function. Pass -d once."); process.exit(1); }
+        vars.ALLOWED_ORIGIN ??= "*";
+        process.stdout.write(JSON.stringify({ Variables: vars }));
+      });' > "$ENV_FILE"
+aws lambda update-function-configuration --function-name "$FUNCTION_NAME" --region "$REGION" \
+  --handler index.handler --environment "file://$ENV_FILE" --query LastUpdateStatus --output text
+aws lambda wait function-updated-v2 --function-name "$FUNCTION_NAME" --region "$REGION"
+
+step "Smoke test GET /health"
+URL="$(aws lambda get-function-url-config --function-name "$FUNCTION_NAME" --region "$REGION" --query FunctionUrl --output text)"
+URL="${URL%/}"
+if ! curl -fsS --max-time 60 "$URL/health"; then
+  echo "Health check failed. Logs: aws logs tail /aws/lambda/$FUNCTION_NAME --region $REGION --since 10m"
   exit 1
 fi
 
-echo "Checking AWS CLI..."
-if ! command -v aws &> /dev/null; then
-  echo "✗ AWS CLI not found. Install from: https://aws.amazon.com/cli/"
-  exit 1
-fi
-echo "✓ AWS CLI found"
-
-echo "Verifying AWS credentials..."
-ACCOUNT=$(aws sts get-caller-identity --query Account --output text --region "$REGION")
-if [ $? -ne 0 ]; then
-  echo "✗ AWS credentials not configured. Run: aws configure"
-  exit 1
-fi
-echo "✓ AWS authenticated (Account: $ACCOUNT)"
-
-echo "Building TypeScript..."
-npm run build
-if [ $? -ne 0 ]; then
-  echo "✗ Build failed"
-  exit 1
-fi
-echo "✓ Build complete"
-
-echo "Creating deployment package..."
-rm -f lambda.zip
-zip -r lambda.zip dist/ > /dev/null
-echo "✓ Zip created (lambda.zip)"
-
-echo "Checking if Lambda function exists..."
-if aws lambda get-function --function-name "$FUNCTION_NAME" --region "$REGION" &> /dev/null; then
-  echo "Function exists, updating code..."
-  aws lambda update-function-code \
-    --function-name "$FUNCTION_NAME" \
-    --zip-file fileb://lambda.zip \
-    --region "$REGION" > /dev/null
-  echo "✓ Function code updated"
-else
-  echo "Function does not exist, creating..."
-
-  ROLE_ARN="arn:aws:iam::$ACCOUNT:role/lambda-sla-watch-api-role"
-
-  if ! aws iam get-role --role-name "lambda-sla-watch-api-role" &> /dev/null; then
-    echo "Creating IAM role..."
-
-    TRUST_POLICY='{
-      "Version": "2012-10-17",
-      "Statement": [{
-        "Effect": "Allow",
-        "Principal": {"Service": "lambda.amazonaws.com"},
-        "Action": "sts:AssumeRole"
-      }]
-    }'
-
-    aws iam create-role \
-      --role-name "lambda-sla-watch-api-role" \
-      --assume-role-policy-document "$TRUST_POLICY" > /dev/null
-
-    aws iam attach-role-policy \
-      --role-name "lambda-sla-watch-api-role" \
-      --policy-arn "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole" > /dev/null
-
-    echo "✓ IAM role created"
-    sleep 3
-  fi
-
-  aws lambda create-function \
-    --function-name "$FUNCTION_NAME" \
-    --runtime "$RUNTIME" \
-    --role "$ROLE_ARN" \
-    --handler "dist/handler.handler" \
-    --zip-file fileb://lambda.zip \
-    --timeout 120 \
-    --memory-size 512 \
-    --region "$REGION" > /dev/null
-
-  echo "✓ Lambda function created"
-fi
-
-echo "Setting environment variables..."
-aws lambda update-function-configuration \
-  --function-name "$FUNCTION_NAME" \
-  --environment "Variables={DATABASE_URL=$DATABASE_URL,ALLOWED_ORIGIN=$ALLOWED_ORIGIN}" \
-  --region "$REGION" > /dev/null
-echo "✓ Environment variables set"
-
-echo "Creating/updating Function URL..."
-if aws lambda get-function-url-config --function-name "$FUNCTION_NAME" --region "$REGION" &> /dev/null; then
-  echo "Function URL exists, updating CORS..."
-  API_URL=$(aws lambda get-function-url-config --function-name "$FUNCTION_NAME" --region "$REGION" --query FunctionUrl --output text)
-  aws lambda update-function-url-config \
-    --function-name "$FUNCTION_NAME" \
-    --cors "AllowOrigins=$ALLOWED_ORIGIN,AllowMethods=GET;POST;OPTIONS,AllowHeaders=Content-Type;x-file-name" \
-    --region "$REGION" > /dev/null
-else
-  echo "Creating Function URL..."
-  API_URL=$(aws lambda create-function-url-config \
-    --function-name "$FUNCTION_NAME" \
-    --auth-type NONE \
-    --cors "AllowOrigins=$ALLOWED_ORIGIN,AllowMethods=GET;POST;OPTIONS,AllowHeaders=Content-Type;x-file-name" \
-    --region "$REGION" \
-    --query FunctionUrl --output text)
-fi
-
-echo "✓ Function URL ready"
-
-echo ""
-echo "=== Deployment Complete ==="
-echo "Function Name: $FUNCTION_NAME"
-echo "Region: $REGION"
-echo "API URL: $API_URL"
-echo ""
-echo "Next steps:"
-echo "1. Set VITE_API_URL=$API_URL in your Vercel deployment"
-echo "2. Deploy web app: cd apps/web && vercel --prod"
-echo "3. Test: curl -s ${API_URL}health | jq ."
-echo ""
-
-# Save config
-cat > deploy-config.json <<EOF
-{
-  "FunctionName": "$FUNCTION_NAME",
-  "Region": "$REGION",
-  "ApiUrl": "$API_URL",
-  "DeployedAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-}
-EOF
-echo "Config saved to deploy-config.json"
-
-echo ""
-echo "✓ Ready to deploy to Vercel!"
+printf '\n\nDeployed. API URL: %s\n' "$URL"

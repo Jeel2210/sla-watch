@@ -1,132 +1,57 @@
-# SLA Watch API Deployment
+# SLA Watch API — Deployment
 
-One-command deployment to AWS Lambda with automatic configuration.
+## How the build works
 
-## Prerequisites
+- `packages/core` is a **TypeScript-source** package (`main: src/index.ts`). It has no build step; whoever
+  consumes it compiles it (Vite for web, Vitest for tests, esbuild for the API).
+- `services/api` builds with **esbuild** into **one file**, `dist/index.mjs`: handler + routes + `@sla/core`
+  + `pg` + `@neondatabase/serverless`. The zip holds only that file: no `node_modules`, no `package.json`.
+- `tsc` in the API is **typecheck only** (`noEmit`). Its output was never runnable by Node: extensionless ESM
+  imports and an unbuilt workspace package.
+- The monorepo is driven by **Turborepo**: `npm run build | typecheck | test` at the root.
 
-- AWS CLI configured: `aws configure`
-- Node.js 20+
-- Valid Neon PostgreSQL connection string
+Lambda settings: handler `index.handler`, runtime `nodejs24.x`, 512 MB, 120 s, Function URL (auth `NONE`).
 
-## Deploy (Windows PowerShell)
+## Deploy (existing function)
 
-```powershell
-cd services\api
-
-.\deploy.ps1 -DatabaseUrl "<neon-connection-string>" -AllowedOrigin "https://your-domain.com"
-```
-
-Or use environment variables:
-
-```powershell
-$env:DATABASE_URL = "<neon-connection-string>"
-$env:ALLOWED_ORIGIN = "https://your-domain.com"
-.\deploy.ps1
-```
-
-See `.env.example` for variable names.
-
-## Deploy (Mac/Linux Bash)
-
-```bash
-cd services/api
-
-chmod +x deploy.sh
-./deploy.sh -d "<neon-connection-string>" -o "https://your-domain.com"
-```
-
-Or:
-
-```bash
-export DATABASE_URL="<neon-connection-string>"
-export ALLOWED_ORIGIN="https://your-domain.com"
-./deploy.sh
-```
-
-Secrets go in environment only (not committed). See `.env.example`.
-
-## What the Script Does
-
-1. ✅ Builds TypeScript (`npm run build`)
-2. ✅ Creates deployment zip from `dist/`
-3. ✅ Creates Lambda function (if first deploy)
-4. ✅ Updates function code (if redeploy)
-5. ✅ Sets environment variables
-6. ✅ Creates/updates Function URL with CORS
-7. ✅ Outputs the API URL for Vercel
-
-## Output
-
-Script prints:
-
-```
-=== Deployment Complete ===
-Function Name: sla-watch-api
-Region: us-east-1
-API URL: https://xxxxx.lambda-url.us-east-1.on.aws/
-
-Next steps:
-1. Set VITE_API_URL=https://xxxxx.lambda-url.us-east-1.on.aws/ in Vercel
-2. Deploy web app: cd apps/web && vercel --prod
-3. Test: curl -s https://xxxxx.lambda-url.us-east-1.on.aws/health | jq .
-```
-
-## Redeploy (After Code Changes)
+Prerequisites: Node 20+, `npm install` at the repo root, AWS CLI v2 with `aws configure` done.
 
 ```powershell
 # Windows
-.\deploy.ps1
-
-# Mac/Linux
-./deploy.sh
+.\services\api\deploy.ps1
 ```
 
-Uses saved config from `deploy-config.json` if no args provided.
+```bash
+# macOS / Linux / CI (needs `zip`)
+./services/api/deploy.sh
+```
+
+The script builds with turbo, zips `dist/index.mjs`, uploads it, sets the handler to `index.handler`,
+keeps the function's existing env vars, and calls `GET /health`. It fails loudly if any step fails.
+
+Change env vars (only needed once or when they change):
+
+```powershell
+.\services\api\deploy.ps1 -DatabaseUrl "<neon-connection-string>" -AllowedOrigin "https://sla-watch-tau.vercel.app"
+```
+
+Defaults: function `sla-watch-api`, region `ap-south-1` (`-FunctionName` / `-Region`, or `-f` / `-r` in bash).
+
+## New AWS account (first-time setup)
+
+`template.yaml` describes the function for SAM. Build first, then deploy the prebuilt bundle:
+
+```bash
+npm run build
+sam deploy --guided --template-file services/api/template.yaml
+```
+
+Don't run `sam deploy` against the existing `sla-watch-api` function. It was created in the console, so
+CloudFormation would fail on the name clash. Use the deploy script for that function.
 
 ## Troubleshooting
 
-**"AWS credentials not configured"**
-```bash
-aws configure
-# Enter: AWS Access Key ID, Secret Access Key, Region, Output format
-```
-
-**"Cannot find module"**
-```bash
-npm install
-```
-
-**"Build failed"**
-```bash
-npm run typecheck  # Check for TypeScript errors
-npm run build      # See detailed build output
-```
-
-**"Function creation failed"**
-- Check that your IAM user has Lambda and IAM permissions
-- Verify Region is correct
-
-## Environment Variables
-
-| Variable | Required | Example |
-|---|---|---|
-| `DATABASE_URL` | Yes | Neon connection string (see `.env.example`) |
-| `ALLOWED_ORIGIN` | No | `https://app.vercel.app` or `*` |
-| `AWS_REGION` | No | `us-east-1` (default) |
-
-## Customization
-
-Edit script for:
-- **Function name:** `-f sla-watch-api-prod`
-- **Region:** `-r eu-west-1`
-- **Memory:** Edit `--memory-size` in script (512 MB default)
-- **Timeout:** Edit `--timeout` in script (120 s default)
-
-## Cost
-
-Free tier covers:
-- 1M requests/month
-- 400,000 GB-seconds/month
-- Generous for low-traffic apps
-
-See [AWS Lambda Pricing](https://aws.amazon.com/lambda/pricing/)
+- **Logs:** `aws logs tail /aws/lambda/sla-watch-api --region ap-south-1 --since 10m`
+- **Browser says "CORS error"** on every call: the function is probably crashing on startup. Crash responses
+  carry no CORS headers, so check the logs first.
+- **`/health` returns 503** (`db: false`): `DATABASE_URL` is wrong, or the Neon project is suspended.
