@@ -1,71 +1,65 @@
-// Use the Lambda Function URL for all API calls
-const API_URL = (import.meta.env.VITE_API_URL || 'https://nvxtvr5hy43lpsc5kvi22z2miu0htbmz.lambda-url.ap-south-1.on.aws').replace(/\/+$/, '');
+// The only module that calls fetch (RULES.md → Frontend). Response types come from @sla/core, shared with the API.
+import { MAX_FILE_BYTES, MAX_GZIP_BYTES, type ApiErrorBody, type Page, type UploadCreated, type UploadSummary } from '@sla/core';
 
-export async function uploadCsv(file: File): Promise<{
-  id: string;
-  fileName: string;
-  duplicate: boolean;
-  rowsStored: number;
-  rowsMerged: number;
-  rowsFixed: number;
-  rowsRejected: number;
-}> {
+/** A failed request, with the API's error body when there is one. */
+export class ApiError extends Error {
+  constructor(public status: number, public body: Partial<ApiErrorBody>) {
+    super(body.error ?? `Request failed (${status})`);
+    this.name = 'ApiError';
+  }
+}
+
+function apiUrl(): string {
+  const url = import.meta.env.VITE_API_URL;
+  if (!url) throw new ApiError(0, { error: 'VITE_API_URL is not set. Add it to apps/web/.env.local (see .env.example).' });
+  return url.replace(/\/+$/, '');
+}
+
+type Query = Record<string, string | number | undefined>;
+
+async function request<T>(path: string, init: RequestInit & { query?: Query } = {}): Promise<T> {
+  const params = new URLSearchParams();
+  for (const [k, v] of Object.entries(init.query ?? {})) if (v !== undefined && v !== '') params.set(k, String(v));
+  const qs = params.size ? `?${params}` : '';
+  let res: Response;
+  try {
+    res = await fetch(`${apiUrl()}${path}${qs}`, init);
+  } catch (e) {
+    if (e instanceof ApiError || (e instanceof DOMException && e.name === 'AbortError')) throw e;
+    throw new ApiError(0, { error: 'Could not reach the server. Check your connection and try again.' });
+  }
+  // Errors raised before our code runs (e.g. the Function URL's own size limit) are not JSON.
+  const body: unknown = await res.json().catch(() => ({}));
+  if (!res.ok) throw new ApiError(res.status, body as Partial<ApiErrorBody>);
+  return body as T;
+}
+
+const MB = (n: number) => `${Math.round(n / 1_000_000)} MB`;
+
+/** Gzips the CSV in the browser (ADR-005) and uploads it. Size limits are checked here first so users get a clear message. */
+export async function uploadCsv(file: File, signal?: AbortSignal): Promise<UploadCreated> {
+  if (!/\.csv$/i.test(file.name)) throw new ApiError(400, { error: 'Only .csv files can be uploaded.' });
+  if (file.size > MAX_FILE_BYTES) throw new ApiError(413, { error: `The file is larger than ${MB(MAX_FILE_BYTES)}.` });
   const gzipped = await new Response(file.stream().pipeThrough(new CompressionStream('gzip'))).blob();
-  const response = await fetch(`${API_URL}/uploads`, {
+  if (gzipped.size > MAX_GZIP_BYTES) {
+    throw new ApiError(413, { error: `The file is ${MB(gzipped.size)} after compression; the limit is ${MB(MAX_GZIP_BYTES)}.` });
+  }
+  return request<UploadCreated>('/uploads', {
     method: 'POST',
     body: gzipped,
-    headers: {
-      'Content-Type': 'application/gzip',
-      'x-file-name': file.name,
-    },
+    headers: { 'Content-Type': 'application/gzip', 'x-file-name': file.name },
+    signal,
   });
-
-  if (!response.ok) {
-    const errorData = await response.json() as Record<string, any>;
-    throw new Error(errorData.error || 'Upload failed');
-  }
-
-  return response.json() as Promise<{
-    id: string;
-    fileName: string;
-    duplicate: boolean;
-    rowsStored: number;
-    rowsMerged: number;
-    rowsFixed: number;
-    rowsRejected: number;
-  }>;
 }
 
-export async function getHealth(): Promise<{ ok: boolean; db: boolean }> {
-  const response = await fetch(`${API_URL}/health`);
-  return response.json();
-}
+export const getHealth = (signal?: AbortSignal) => request<{ ok: boolean; db: boolean }>('/health', { signal });
 
-export async function getUploads(options?: { cursor?: string; limit?: number; q?: string }) {
-  const params = new URLSearchParams();
-  if (options?.cursor) params.set('cursor', options.cursor);
-  if (options?.limit) params.set('limit', options.limit.toString());
-  if (options?.q) params.set('q', options.q);
+export const getUploads = (opts: { cursor?: string; limit?: number; q?: string } = {}, signal?: AbortSignal) =>
+  request<Page<UploadSummary>>('/uploads', { query: opts, signal });
 
-  const response = await fetch(`${API_URL}/uploads?${params}`);
-  return response.json();
-}
+// Dashboard reads: not served by the API yet (404) — kept so the current screens compile; typed with the read endpoints.
+export const getStats = <T,>(uploadId: string, signal?: AbortSignal) =>
+  request<T>(`/uploads/${encodeURIComponent(uploadId)}/stats`, { signal });
 
-export async function getStats(uploadId: string) {
-  const response = await fetch(`${API_URL}/uploads/${uploadId}/stats`);
-  if (!response.ok) throw new Error('Failed to fetch stats');
-  return response.json();
-}
-
-export async function getLogs(uploadId: string, filters?: { from?: string; to?: string; service?: string; cursor?: string; limit?: number }) {
-  const params = new URLSearchParams();
-  if (filters?.from) params.set('from', filters.from);
-  if (filters?.to) params.set('to', filters.to);
-  if (filters?.service) params.set('service', filters.service);
-  if (filters?.cursor) params.set('cursor', filters.cursor);
-  if (filters?.limit) params.set('limit', filters.limit.toString());
-
-  const response = await fetch(`${API_URL}/uploads/${uploadId}/checks?${params}`);
-  if (!response.ok) throw new Error('Failed to fetch logs');
-  return response.json();
-}
+export const getLogs = <T,>(uploadId: string, filters: Query = {}, signal?: AbortSignal) =>
+  request<T>(`/uploads/${encodeURIComponent(uploadId)}/checks`, { query: filters, signal });

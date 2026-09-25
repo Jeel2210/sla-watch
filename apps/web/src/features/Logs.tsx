@@ -23,14 +23,14 @@ export function Logs({ uploadId }: { uploadId: string }) {
 
   const logsQuery = useQuery({
     queryKey: ['logs', uploadId, { service: filterService, status: filterStatus }],
-    queryFn: () => getLogs(uploadId, { service: filterService }),
+    queryFn: ({ signal }) => getLogs<{ rows: Check[] }>(uploadId, { service: filterService }, signal),
     retry: 1,
     staleTime: 5 * 60 * 1000,
   });
 
   if (logsQuery.isPending) return <div className="loading">Loading logs...</div>;
 
-  const checks = (logsQuery.data?.rows || []) as Check[];
+  const checks = logsQuery.data?.rows ?? [];
   const failedCount = checks.filter((c) => c.is_failed).length;
   const changedCount = checks.filter((c) => c.quality_flags.length > 0).length;
 

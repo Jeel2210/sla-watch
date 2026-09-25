@@ -1,54 +1,36 @@
 import React, { useState } from 'react';
-import { uploadCsv, getUploads, getHealth } from './api/client';
+import type { UploadCreated, UploadSummary } from '@sla/core';
+import { uploadCsv, getUploads } from './api/client';
 import { Dashboard } from './features/Dashboard';
 import { Logs } from './features/Logs';
 import './styles/index.css';
 
-interface UploadSummary {
-  id: string;
-  fileName: string;
-  duplicate: boolean;
-  rowsStored: number;
-  rowsMerged: number;
-  rowsFixed: number;
-  rowsRejected: number;
-}
-
-interface Upload extends UploadSummary {
-  uploadedAt: string;
-}
-
 export default function App() {
   const [status, setStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
   const [message, setMessage] = useState<string>('');
-  const [uploads, setUploads] = useState<Upload[]>([]);
-  const [lastUpload, setLastUpload] = useState<UploadSummary | null>(null);
+  const [uploads, setUploads] = useState<UploadSummary[]>([]);
+  const [lastUpload, setLastUpload] = useState<UploadCreated | null>(null);
   const [showDashboard, setShowDashboard] = useState(false);
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.currentTarget.files?.[0];
+  // One path for both the file picker and drag-and-drop.
+  const handleFile = async (file: File | undefined) => {
     if (!file) return;
-
     setStatus('uploading');
     setMessage('Processing your file...');
-
     try {
       const result = await uploadCsv(file);
       setLastUpload(result);
       setShowDashboard(true);
       setStatus('success');
-      setMessage(
-        `✓ ${result.duplicate ? 'Duplicate upload' : 'Upload successful'}. Stored ${result.rowsStored} checks.`
-      );
-
-      // Refresh uploads list
-      const list = await getUploads();
-      setUploads(list.uploads || []);
-    } catch (error: any) {
+      setMessage(`✓ ${result.duplicate ? 'Duplicate upload' : 'Upload successful'}. Stored ${result.rowsStored} checks.`);
+      setUploads((await getUploads()).items);
+    } catch (error) {
       setStatus('error');
-      setMessage(`✗ ${error.message}`);
+      setMessage(`✗ ${error instanceof Error ? error.message : 'Upload failed'}`);
     }
   };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => handleFile(e.currentTarget.files?.[0]);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -59,32 +41,10 @@ export default function App() {
     e.currentTarget.classList.remove('dragover');
   };
 
-  const handleDrop = async (e: React.DragEvent) => {
+  const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     e.currentTarget.classList.remove('dragover');
-
-    const file = e.dataTransfer.files?.[0];
-    if (!file) return;
-
-    setStatus('uploading');
-    setMessage('Processing your file...');
-
-    try {
-      const result = await uploadCsv(file);
-      setLastUpload(result);
-      setShowDashboard(true);
-      setStatus('success');
-      setMessage(
-        `✓ ${result.duplicate ? 'Duplicate upload' : 'Upload successful'}. Stored ${result.rowsStored} checks.`
-      );
-
-      // Refresh uploads list
-      const list = await getUploads();
-      setUploads(list.uploads || []);
-    } catch (error: any) {
-      setStatus('error');
-      setMessage(`✗ ${error.message}`);
-    }
+    void handleFile(e.dataTransfer.files?.[0]);
   };
 
   return (

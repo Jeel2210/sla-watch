@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@sla/core": "*",
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
     "@tanstack/react-query": "^5.50.0"

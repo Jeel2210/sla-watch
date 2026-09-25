@@ -7,8 +7,9 @@ React frontend for the SLA monitoring dashboard. Built with Vite, React 18, and 
 ### Development
 
 ```bash
-# Set the API URL (Lambda Function URL from Phase 2)
-export VITE_API_URL="https://xxx.lambda-url.region.on.aws/"
+# Set the API URL once (Lambda Function URL printed by services/api/deploy.sh).
+# There is no built-in fallback: without it every request fails with a clear message.
+cp .env.example .env.local   # then fill in VITE_API_URL
 
 # Start dev server
 npm run dev

@@ -21,7 +21,7 @@ export function Dashboard({ uploadId }: { uploadId: string }) {
   // Fetch service stats from API using TanStack Query
   const statsQuery = useQuery({
     queryKey: ['stats', uploadId],
-    queryFn: () => getStats(uploadId),
+    queryFn: ({ signal }) => getStats<{ stats: ServiceStat[]; incidents: number; missedSla: number }>(uploadId, signal),
     retry: 1,
     staleTime: 5 * 60 * 1000,
   });
